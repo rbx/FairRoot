@@ -1,6 +1,8 @@
 include_directories(
   ${BASE_INCLUDE_DIRECTORIES}
   ${CMAKE_SOURCE_DIR}/fairmq
+  ${CMAKE_SOURCE_DIR}/example/Tutorial3/digitization
+  ${CMAKE_SOURCE_DIR}/example/Tutorial3/data
   ${ZMQ_INCLUDE_DIR}
   ${ROOT_INCLUDE_DIR}
 )

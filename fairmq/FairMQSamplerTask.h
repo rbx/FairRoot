@@ -23,7 +23,7 @@ class FairMQSamplerTask: public FairTask
     FairMQSamplerTask(const Text_t* name, Int_t iVerbose=1);
     virtual ~FairMQSamplerTask();
     virtual InitStatus Init();
-    virtual void Exec(Option_t* opt) = 0;
+    virtual void Exec(Option_t* opt);
     void SetBranch(TString branch);
     FairMQMessage* GetOutput();
     static void ClearOutput(void* data, void* hint);

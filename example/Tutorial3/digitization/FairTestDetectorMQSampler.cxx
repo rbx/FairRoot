@@ -17,12 +17,3 @@ TestDetectorMQSampler::TestDetectorMQSampler()
 TestDetectorMQSampler::~TestDetectorMQSampler()
 {
 }
-
-void TestDetectorMQSampler::Init()
-{
-  if (fBranch == TestDetectorBranch::TestDetectorDigis) {
-    fSamplerTask = new TestDetectorDigiLoader();
-  }
-
-  FairMQSampler::Init();
-}

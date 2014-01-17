@@ -17,8 +17,6 @@ class TestDetectorMQSampler: public FairMQSampler
   public:
     TestDetectorMQSampler();
     virtual ~TestDetectorMQSampler();
-  protected:
-    virtual void Init();
 };
 
 #endif /* TESTDETECTORMQSAMPLER_H_ */
