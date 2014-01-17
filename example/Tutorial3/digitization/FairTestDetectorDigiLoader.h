@@ -17,7 +17,7 @@ class TestDetectorDigiLoader: public FairMQSamplerTask
   public:
     TestDetectorDigiLoader();
     virtual ~TestDetectorDigiLoader();
-    void Exec(Option_t* opt);
+    virtual void Exec(Option_t* opt);
 };
 
 #endif /* TESTDETECTORDIGILOADER_H_ */

@@ -38,6 +38,14 @@ InitStatus FairMQSamplerTask::Init()
   return kSUCCESS;
 }
 
+
+
+void FairMQSamplerTask::Exec(Option_t* opt)// added (Nico)
+{
+  //fNDetectorDigis = fInput->GetEntriesFast();
+}
+
+
 void FairMQSamplerTask::SetBranch(TString branch)
 {
   fBranch = branch;
