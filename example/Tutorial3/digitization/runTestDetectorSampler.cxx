@@ -9,17 +9,16 @@
 #include <csignal>
 
 #include "FairMQLogger.h"
-#include "FairTestDetectorMQSampler.h"
+#include "FairMQSampler.h"
 
-
-TestDetectorMQSampler sampler;
+FairMQSampler sampler;
 
 static void s_signal_handler (int signal)
 {
   std::cout << std::endl << "Caught signal " << signal << std::endl;
 
-  sampler.ChangeState(TestDetectorMQSampler::STOP);
-  sampler.ChangeState(TestDetectorMQSampler::END);
+  sampler.ChangeState(FairMQSampler::STOP);
+  sampler.ChangeState(FairMQSampler::END);
 
   std::cout << "Shutdown complete. Bye!" << std::endl;
   exit(1);
@@ -52,69 +51,69 @@ int main(int argc, char** argv)
 
   int i = 1;
 
-  sampler.SetProperty(TestDetectorMQSampler::Id, argv[i]);
+  sampler.SetProperty(FairMQSampler::Id, argv[i]);
   ++i;
 
-  sampler.SetProperty(TestDetectorMQSampler::InputFile, argv[i]);
+  sampler.SetProperty(FairMQSampler::InputFile, argv[i]);
   ++i;
 
-  sampler.SetProperty(TestDetectorMQSampler::ParFile, argv[i]);
+  sampler.SetProperty(FairMQSampler::ParFile, argv[i]);
   ++i;
 
-  sampler.SetProperty(TestDetectorMQSampler::Branch, argv[i]);
+  sampler.SetProperty(FairMQSampler::Branch, argv[i]);
   ++i;
 
   int eventRate;
   std::stringstream(argv[i]) >> eventRate;
-  sampler.SetProperty(TestDetectorMQSampler::EventRate, eventRate);
+  sampler.SetProperty(FairMQSampler::EventRate, eventRate);
   ++i;
 
   int numIoThreads;
   std::stringstream(argv[i]) >> numIoThreads;
-  sampler.SetProperty(TestDetectorMQSampler::NumIoThreads, numIoThreads);
+  sampler.SetProperty(FairMQSampler::NumIoThreads, numIoThreads);
   ++i;
 
-  sampler.SetProperty(TestDetectorMQSampler::NumInputs, 0);
-  sampler.SetProperty(TestDetectorMQSampler::NumOutputs, 1);
+  sampler.SetProperty(FairMQSampler::NumInputs, 0);
+  sampler.SetProperty(FairMQSampler::NumOutputs, 1);
 
-  sampler.ChangeState(TestDetectorMQSampler::INIT);
+  sampler.ChangeState(FairMQSampler::INIT);
 
   // INPUT: 0 - command
-  //sampler.SetProperty(TestDetectorMQSampler::InputSocketType, ZMQ_SUB, 0);
-  //sampler.SetProperty(TestDetectorMQSampler::InputRcvBufSize, 1000, 0);
-  //sampler.SetProperty(TestDetectorMQSampler::InputAddress, "tcp://localhost:5560", 0);
+  //sampler.SetProperty(FairMQSampler::InputSocketType, ZMQ_SUB, 0);
+  //sampler.SetProperty(FairMQSampler::InputRcvBufSize, 1000, 0);
+  //sampler.SetProperty(FairMQSampler::InputAddress, "tcp://localhost:5560", 0);
 
   // OUTPUT: 0 - data
   int outputSocketType = ZMQ_PUB;
   if (strcmp(argv[i], "push") == 0) {
     outputSocketType = ZMQ_PUSH;
   }
-  sampler.SetProperty(TestDetectorMQSampler::OutputSocketType, outputSocketType, 0);
+  sampler.SetProperty(FairMQSampler::OutputSocketType, outputSocketType, 0);
   ++i;
   int outputSndBufSize;
   std::stringstream(argv[i]) >> outputSndBufSize;
-  sampler.SetProperty(TestDetectorMQSampler::OutputSndBufSize, outputSndBufSize, 0);
+  sampler.SetProperty(FairMQSampler::OutputSndBufSize, outputSndBufSize, 0);
   ++i;
-  sampler.SetProperty(TestDetectorMQSampler::OutputMethod, argv[i], 0);
+  sampler.SetProperty(FairMQSampler::OutputMethod, argv[i], 0);
   ++i;
-  sampler.SetProperty(TestDetectorMQSampler::OutputAddress, argv[i], 0);
+  sampler.SetProperty(FairMQSampler::OutputAddress, argv[i], 0);
   ++i;
 
   // OUTPUT: 1 - logger
-  //sampler.SetProperty(TestDetectorMQSampler::OutputSocketType, ZMQ_PUB, 1);
-  //sampler.SetProperty(TestDetectorMQSampler::OutputSndBufSize, 1000, 1);
-  //sampler.SetProperty(TestDetectorMQSampler::OutputAddress, "tcp://*:5561", 1);
+  //sampler.SetProperty(FairMQSampler::OutputSocketType, ZMQ_PUB, 1);
+  //sampler.SetProperty(FairMQSampler::OutputSndBufSize, 1000, 1);
+  //sampler.SetProperty(FairMQSampler::OutputAddress, "tcp://*:5561", 1);
 
-  sampler.ChangeState(TestDetectorMQSampler::SETOUTPUT);
-  sampler.ChangeState(TestDetectorMQSampler::SETINPUT);
-  sampler.ChangeState(TestDetectorMQSampler::RUN);
+  sampler.ChangeState(FairMQSampler::SETOUTPUT);
+  sampler.ChangeState(FairMQSampler::SETINPUT);
+  sampler.ChangeState(FairMQSampler::RUN);
 
   //TODO: get rid of this hack!
   char ch;
   std::cin.get(ch);
 
-  sampler.ChangeState(TestDetectorMQSampler::STOP);
-  sampler.ChangeState(TestDetectorMQSampler::END);
+  sampler.ChangeState(FairMQSampler::STOP);
+  sampler.ChangeState(FairMQSampler::END);
 
   return 0;
 }

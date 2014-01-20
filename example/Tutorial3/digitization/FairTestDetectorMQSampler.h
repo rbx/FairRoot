@@ -10,7 +10,7 @@
 
 #include "FairMQSampler.h"
 
-#include "FairTestDetectorPayload.h"
+//#include "FairTestDetectorPayload.h"
 
 class TestDetectorMQSampler: public FairMQSampler
 {

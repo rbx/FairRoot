@@ -72,13 +72,14 @@ If (Boost_FOUND)
   )
 EndIf (Boost_FOUND)
 
-Set(HEADERS)
-Set(${HEADERS} data/FairTestDetectorPayload.h ) 
+#Set(HEADERS)
+#Set(${HEADERS} data/FairTestDetectorPayload.h ) 
 Set(LINKDEF FairTestDetectorLinkDef.h)
 Set(LIBRARY_NAME FairTestDetector)
 
 If (Boost_FOUND)
-  Set(DEPENDENCIES Base MCStack FairMQ boost_thread boost_system)
+  Set(DEPENDENCIES 
+    Base MCStack FairMQ boost_thread boost_system)
 Else (Boost_FOUND)
   Set(DEPENDENCIES Base MCStack)
 EndIf (Boost_FOUND)

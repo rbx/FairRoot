@@ -1,11 +1,24 @@
-include_directories(
+set(INCLUDE_DIRECTORIES
+${BASE_INCLUDE_DIRECTORIES}
+${CMAKE_SOURCE_DIR}/example/mcstack
+)
+
+include_directories( ${INCLUDE_DIRECTORIES})
+set(INCLUDE_DIRECTORIES
+${BASE_INCLUDE_DIRECTORIES}
+${CMAKE_SOURCE_DIR}/example/mcstack
+)
+
+include_directories( ${INCLUDE_DIRECTORIES})
+set(INCLUDE_DIRECTORIES
   ${BASE_INCLUDE_DIRECTORIES}
   ${CMAKE_SOURCE_DIR}/fairmq
-  ${CMAKE_SOURCE_DIR}/example/Tutorial3/digitization
-  ${CMAKE_SOURCE_DIR}/example/Tutorial3/data
   ${ZMQ_INCLUDE_DIR}
   ${ROOT_INCLUDE_DIR}
 )
+
+include_directories( ${INCLUDE_DIRECTORIES})
+
 
 Set(SRCS
   "FairMQSampler.cxx"
@@ -14,6 +27,8 @@ Set(SRCS
   "FairMQConfigurable.cxx"
   "FairMQBuffer.cxx"
   "FairMQSamplerTask.cxx"
+  "FairMQDigiLoader.cxx"
+  "FairMQDigi.cxx"
   "FairMQLogger.cxx"
   "FairMQContext.cxx"
   "FairMQMessage.cxx"
@@ -27,6 +42,7 @@ Set(SRCS
   "FairMQProxy.cxx"
 )
 
+
 Set(LINK_DIRECTORIES
   ${ROOT_LIBRARY_DIR}
   ${Boost_LIBRARY_DIRS}
@@ -34,8 +50,12 @@ Set(LINK_DIRECTORIES
 
 link_directories(${LINK_DIRECTORIES})
 
+#Set(HEADERS)
+Set(HEADERS FairMQDigi.h )
+Set(LINKDEF FairMQLinkDef.h)
+
 Set(LIBRARY_NAME FairMQ)
-Set(LINKDEF)
+#Set(LINKDEF)
 Set(DEPENDENCIES 
   ${CMAKE_THREAD_LIBS_INIT}
   ${ZMQ_LIBRARY_SHARED}

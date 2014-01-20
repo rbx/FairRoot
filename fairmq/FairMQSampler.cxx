@@ -21,11 +21,13 @@
 
 #include "FairMQSampler.h"
 #include "FairMQLogger.h"
-#include "FairTestDetectorDigiLoader.h"
+//#include "FairTestDetectorDigiLoader.h"
+#include "FairMQDigiLoader.h"
 
 FairMQSampler::FairMQSampler() :
   fFairRunAna(new FairRunAna()),
-  fSamplerTask(new TestDetectorDigiLoader()),
+  //fSamplerTask(new TestDetectorDigiLoader()),
+  fSamplerTask(new FairMQDigiLoader()),
   fInputFile(""),
   fParFile(""),
   fBranch(""),
@@ -44,6 +46,7 @@ void FairMQSampler::Init()
 {
   FairMQDevice::Init();
 
+  
   fSamplerTask->SetBranch(fBranch);
 
   fFairRunAna->SetInputFile(TString(fInputFile));

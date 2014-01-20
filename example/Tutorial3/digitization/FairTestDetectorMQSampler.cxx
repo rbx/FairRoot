@@ -7,7 +7,7 @@
 
 #include "FairTestDetectorMQSampler.h"
 
-#include "FairTestDetectorDigiLoader.h"
+//#include "FairTestDetectorDigiLoader.h"
 
 
 TestDetectorMQSampler::TestDetectorMQSampler()
