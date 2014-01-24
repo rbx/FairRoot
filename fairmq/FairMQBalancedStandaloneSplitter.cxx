@@ -23,8 +23,8 @@ void FairMQBalancedStandaloneSplitter::Run()
 {
   FairMQLogger::GetInstance()->Log(FairMQLogger::INFO, ">>>>>>> Run <<<<<<<");
 
-  boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
-
+  //boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
+  boost::thread rateLogger(&FairMQDevice::LogSocketRates, this);
   // Initialize poll set
   zmq_pollitem_t items[] = {
     { *(fPayloadInputs->at(0)->GetSocket()), 0, ZMQ_POLLIN, 0 }

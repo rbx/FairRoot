@@ -11,7 +11,7 @@
 
 
 FairMQDigiLoader::FairMQDigiLoader() :
-  FairMQSamplerTask("Load TestDetectorDigiPixel from rootfile into FairMQPayload::TestDetectorDigi")
+  FairMQSamplerTask("Load Detector Digis from rootfile into FairMQPayload::TestDetectorDigi")
 {
 }
 
@@ -21,13 +21,13 @@ FairMQDigiLoader::~FairMQDigiLoader()
 
 void FairMQDigiLoader::Exec(Option_t* opt)
 {
-  Int_t nTestDetectorDigis = fInput->GetEntriesFast();
-  Int_t size = nTestDetectorDigis * sizeof(FairMQPayload::TestDetectorDigi);
+  Int_t NDigis = fInput->GetEntriesFast();
+  Int_t size = NDigis * sizeof(FairMQPayload::TestDetectorDigi);
   
   void* buffer = operator new[](size);
   FairMQPayload::TestDetectorDigi* ptr = static_cast<FairMQPayload::TestDetectorDigi*>(buffer);
 
-  for (Int_t i = 0; i < nTestDetectorDigis; ++i) {
+  for (Int_t i = 0; i < NDigis; ++i) {
     FairMQDigi* testDigi = dynamic_cast<FairMQDigi*>(fInput->At(i));
     if (NULL == testDigi)
         continue;
@@ -43,7 +43,7 @@ void FairMQDigiLoader::Exec(Option_t* opt)
   }
 
   fOutput->GetMessage()->rebuild(buffer, size, &FairMQSamplerTask::ClearOutput);
-
-  //std::cout << "Loaded " << fOutput->Size() << " bytes (" << nTestDetectorDigis << " entries)." << std::endl;
+  
+  //std::cout << "Loaded " << fOutput->Size() << " bytes (" << NDigis << " entries)." << std::endl;
 }
 
