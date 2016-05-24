@@ -16,6 +16,10 @@
 #define FAIRMQEXAMPLESHMSAMPLER_H_
 
 #include <string>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <unordered_map>
 
 #include "FairMQDevice.h"
 #include "ShmChunk.h"
@@ -23,13 +27,6 @@
 class FairMQExampleShmSampler : public FairMQDevice
 {
   public:
-    enum
-    {
-        MsgSize = FairMQDevice::Last,
-        MsgRate,
-        Last
-    };
-
     FairMQExampleShmSampler();
     virtual ~FairMQExampleShmSampler();
 
@@ -37,25 +34,17 @@ class FairMQExampleShmSampler : public FairMQDevice
     void Log(const int intervalInMs);
     void ResetMsgCounter();
 
-    virtual void SetProperty(const int key, const std::string& value);
-    virtual std::string GetProperty(const int key, const std::string& default_ = "");
-    virtual void SetProperty(const int key, const int value);
-    virtual int GetProperty(const int key, const int default_ = 0);
-
-    virtual std::string GetPropertyDescription(const int key);
-    virtual void ListProperties();
-
   protected:
-    unsigned int fMsgSize;
-    unsigned int fMsgCounter;
-    unsigned int fMsgRate;
+    int fMsgSize;
+    std::atomic<int> fMsgCounter;
+    int fMsgRate;
 
     unsigned long long fBytesOut;
     unsigned long long fMsgOut;
     std::atomic<unsigned long long> fBytesOutNew;
     std::atomic<unsigned long long> fMsgOutNew;
 
-    std::unordered_map<std::string, SharedPtrType> fLocalPtrs;
+    std::unordered_map<uint64_t, SharedPtrOwner*> fPtrs;
 
     std::mutex fContainerMutex;
     std::mutex fAckMutex;

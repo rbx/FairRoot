@@ -12,9 +12,12 @@
  * @author A. Rybalchenko
  */
 
-#include <boost/thread.hpp>
+#include <thread>
+#include <chrono>
+
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/smart_ptr/shared_ptr.hpp>
+#include <boost/interprocess/ipc/message_queue.hpp>
 
 #include "FairMQExampleShmSink.h"
 #include "FairMQLogger.h"
@@ -22,6 +25,7 @@
 
 using namespace std;
 using namespace boost::interprocess;
+namespace bpt = boost::posix_time;
 
 FairMQExampleShmSink::FairMQExampleShmSink()
     : fBytesIn(0)
@@ -45,65 +49,76 @@ void FairMQExampleShmSink::Init()
 void FairMQExampleShmSink::Run()
 {
     uint64_t numReceivedMsgs = 0;
+    uint64_t receivedId = 0;
 
-    boost::thread rateLogger(boost::bind(&FairMQExampleShmSink::Log, this, 1000));
+    thread rateLogger(&FairMQExampleShmSink::Log, this, 1000);
+
+    size_t pos = fChannels.at("meta").at(0).GetAddress().rfind("/");
+    string queueName = fChannels.at("meta").at(0).GetAddress().substr(pos + 1);
+
+    message_queue metaQueue(open_only, queueName.c_str());
+    message_queue ackQueue(open_only, "ack_queue");
+    unsigned int priority;
+    message_queue::size_type rcvSize;
 
     while (CheckCurrentState(RUNNING))
     {
-        unique_ptr<FairMQMessage> msg(NewMessage());
+        bpt::ptime rcvTill = bpt::microsec_clock::universal_time() + bpt::milliseconds(1000);
 
-        if (Receive(msg, "meta") >= 0)
+        if (metaQueue.timed_receive(&receivedId, sizeof(receivedId), rcvSize, priority, rcvTill))
         {
-            string ownerStr(static_cast<char*>(msg->GetData()), msg->GetSize());
-            LOG(TRACE) << "Received message: " << ownerStr;
+            numReceivedMsgs++;
 
-            SharedPtrType* owner = SegmentManager::Instance().Segment()->find<SharedPtrType>(ownerStr.c_str()).first;
-            LOG(TRACE) << "owner use count: " << owner->use_count();
+            string ownerStr("o" + to_string(receivedId));
+            // LOG(TRACE) << "Received message: " << ownerStr;
 
-            // reply with the string as a confirmation
-            if (Send(msg, "ack") >= 0)
+            // find the shared pointer in shared memory with its ID
+            SharedPtrOwner* owner = SegmentManager::Instance().Segment()->find<SharedPtrOwner>(ownerStr.c_str()).first;
+            // LOG(TRACE) << "owner use count: " << owner->fSharedPtr.use_count();
+            // create a local shared pointer from the received one (increments the reference count)
+            SharedPtrType localPtr = owner->fSharedPtr;
+            // LOG(TRACE) << "owner use count: " << owner->fSharedPtr.use_count();
+
+            bpt::ptime sndTill = bpt::microsec_clock::universal_time() + bpt::milliseconds(1000);
+
+            if (ackQueue.timed_send(&receivedId, sizeof(receivedId), 0, sndTill))
             {
-                LOG(TRACE) << "Sent acknowledgement.";
+                // LOG(TRACE) << "Sent acknowledgement.";
+            }
+            else
+            {
+                LOG(WARN) << "Did not send anything within 1 second.";
             }
 
-            if (owner)
+            if (localPtr)
             {
-                // void* ptr = SegmentManager::Instance().Segment()->get_address_from_handle(owner->get()->Handle());
-                LOG(TRACE) << "chunk handle: " << owner->get()->Handle();
-                LOG(TRACE) << "chunk size: " << owner->get()->Size();
-                fBytesInNew += owner->get()->Size();
+                void* ptr = localPtr->GetData();
+
+                // LOG(TRACE) << "chunk handle: " << localPtr->GetHandle();
+                // LOG(TRACE) << "chunk size: " << localPtr->GetSize();
+
+                fBytesInNew += localPtr->GetSize();
                 ++fMsgInNew;
 
                 // char* cptr = static_cast<char*>(ptr);
-
                 // LOG(TRACE) << "check: " << cptr[3];
             }
             else
             {
-                LOG(WARN) << "shared pointer is zero :-(";
+                LOG(WARN) << "shared pointer is zero";
             }
 
-            SegmentManager::Instance().Segment()->destroy_ptr(owner);
-
-            LOG(TRACE) << "deallocated memory & destroyed shared pointer";
-            LOG(TRACE) << "owner use count: " << owner->use_count();
-
-            ++numReceivedMsgs;
+            // LOG(TRACE) << "destroying local shared pointer";
+        }
+        else
+        {
+            LOG(WARN) << "Did not receive anything within 1 second.";
         }
     }
 
     LOG(INFO) << "Received " << numReceivedMsgs << " messages, leaving RUNNING state.";
 
-    try
-    {
-        rateLogger.interrupt();
-        rateLogger.join();
-    }
-    catch(boost::thread_resource_error& e)
-    {
-        LOG(ERROR) << e.what();
-        exit(EXIT_FAILURE);
-    }
+    rateLogger.join();
 }
 
 void FairMQExampleShmSink::Log(const int intervalInMs)
@@ -115,31 +130,24 @@ void FairMQExampleShmSink::Log(const int intervalInMs)
     double mbPerSecIn = 0;
     double msgPerSecIn = 0;
 
-    while (true)
+    while (CheckCurrentState(RUNNING))
     {
-        try
-        {
-            t1 = get_timestamp();
+        t1 = get_timestamp();
 
-            msSinceLastLog = (t1 - t0) / 1000.0L;
+        msSinceLastLog = (t1 - t0) / 1000.0L;
 
-            mbPerSecIn = (static_cast<double>(fBytesInNew - fBytesIn) / (1024. * 1024.)) / static_cast<double>(msSinceLastLog) * 1000.;
-            fBytesIn = fBytesInNew;
+        mbPerSecIn = (static_cast<double>(fBytesInNew - fBytesIn) / (1024. * 1024.)) / static_cast<double>(msSinceLastLog) * 1000.;
+        fBytesIn = fBytesInNew;
 
-            msgPerSecIn = static_cast<double>(fMsgInNew - fMsgIn) / static_cast<double>(msSinceLastLog) * 1000.;
-            fMsgIn = fMsgInNew;
+        msgPerSecIn = static_cast<double>(fMsgInNew - fMsgIn) / static_cast<double>(msSinceLastLog) * 1000.;
+        fMsgIn = fMsgInNew;
 
-            LOG(DEBUG) << fixed
-                       << setprecision(0) << "in: " << msgPerSecIn << " msg ("
-                       << setprecision(2) << mbPerSecIn << " MB)\t("
-                       << SegmentManager::Instance().Segment()->get_free_memory() / (1024. * 1024.) << " MB free)";
+        LOG(DEBUG) << fixed
+                   << setprecision(0) << "in: " << msgPerSecIn << " msg ("
+                   << setprecision(2) << mbPerSecIn << " MB)\t("
+                   << SegmentManager::Instance().Segment()->get_free_memory() / (1024. * 1024.) << " MB free)";
 
-            t0 = t1;
-            boost::this_thread::sleep(boost::posix_time::milliseconds(intervalInMs));
-        }
-        catch (boost::thread_interrupted&)
-        {
-            break;
-        }
+        t0 = t1;
+        this_thread::sleep_for(chrono::milliseconds(intervalInMs));
     }
 }

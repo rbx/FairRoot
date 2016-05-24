@@ -1,8 +1,8 @@
 /********************************************************************************
  *    Copyright (C) 2014 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH    *
  *                                                                              *
- *              This software is distributed under the terms of the             * 
- *         GNU Lesser General Public Licence version 3 (LGPL) version 3,        *  
+ *              This software is distributed under the terms of the             *
+ *         GNU Lesser General Public Licence version 3 (LGPL) version 3,        *
  *                  copied verbatim in the file "LICENSE"                       *
  ********************************************************************************/
 /**
@@ -23,15 +23,15 @@
 #ifndef SHMCHUNK_H_
 #define SHMCHUNK_H_
 
-// using namespace boost::interprocess;
+namespace bipc = boost::interprocess;
 
 class SegmentManager
 {
   public:
     static SegmentManager& Instance()
     {
-        static SegmentManager man;
-        return man;
+        static SegmentManager manager;
+        return manager;
     }
 
     void InitializeSegment(const std::string& op, const std::string& name, const size_t size = 0)
@@ -42,11 +42,11 @@ class SegmentManager
             {
                 if (op == "open_or_create")
                 {
-                    fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::open_or_create, name.c_str(), size);
+                    fSegment = new bipc::managed_shared_memory(bipc::open_or_create, name.c_str(), size);
                 }
                 else if (op == "create_only")
                 {
-                    fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::create_only, name.c_str(), size);
+                    fSegment = new bipc::managed_shared_memory(bipc::create_only, name.c_str(), size);
                 }
                 else if (op == "open_only")
                 {
@@ -57,10 +57,10 @@ class SegmentManager
                     {
                         try
                         {
-                            fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::open_only, name.c_str());
+                            fSegment = new bipc::managed_shared_memory(bipc::open_only, name.c_str());
                             success = true;
                         }
-                        catch (boost::interprocess::interprocess_exception& ie)
+                        catch (bipc::interprocess_exception& ie)
                         {
                             if (++numTries == 5)
                             {
@@ -91,7 +91,7 @@ class SegmentManager
         }
     }
 
-    boost::interprocess::managed_shared_memory* Segment() const
+    bipc::managed_shared_memory* Segment() const
     {
         if (fSegment)
         {
@@ -100,8 +100,7 @@ class SegmentManager
         else
         {
             LOG(ERROR) << "Segment not initialized";
-            assert(fSegment);
-            return nullptr;
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -110,7 +109,7 @@ class SegmentManager
         : fSegment(nullptr)
     {}
 
-    boost::interprocess::managed_shared_memory* fSegment;
+    bipc::managed_shared_memory* fSegment;
 };
 
 class ShmChunk
@@ -122,38 +121,51 @@ class ShmChunk
     {
         void* ptr = SegmentManager::Instance().Segment()->allocate(size);
         fHandle = SegmentManager::Instance().Segment()->get_handle_from_address(ptr);
-        LOG(TRACE) << "constructing chunk (" << fHandle << ")";
+        // LOG(TRACE) << "constructing chunk (" << fHandle << ")";
     }
 
     ~ShmChunk()
     {
-        LOG(TRACE) << "destroying chunk (" << fHandle << ")";
+        // LOG(TRACE) << "destroying chunk (" << fHandle << ")";
         SegmentManager::Instance().Segment()->deallocate(SegmentManager::Instance().Segment()->get_address_from_handle(fHandle));
     }
 
-    boost::interprocess::managed_shared_memory::handle_t Handle() const
+    bipc::managed_shared_memory::handle_t GetHandle() const
     {
         return fHandle;
     }
 
-    size_t Size() const
+    void* GetData() const
+    {
+        return SegmentManager::Instance().Segment()->get_address_from_handle(fHandle);
+    }
+
+    size_t GetSize() const
     {
         return fSize;
     }
 
   private:
-    boost::interprocess::managed_shared_memory::handle_t fHandle;
+    bipc::managed_shared_memory::handle_t fHandle;
     size_t fSize;
 };
 
-typedef boost::interprocess::managed_shared_ptr<ShmChunk, boost::interprocess::managed_shared_memory>::type SharedPtrType;
+typedef bipc::managed_shared_ptr<ShmChunk, bipc::managed_shared_memory>::type SharedPtrType;
 
 struct SharedPtrOwner
 {
-    SharedPtrOwner(const SharedPtrType &otherPtr) : fSharedPtr(otherPtr) {}
-    SharedPtrOwner(const SharedPtrOwner &otherOwner) : fSharedPtr(otherOwner.fSharedPtr) {}
+    SharedPtrOwner(const SharedPtrType& otherPtr)
+        : fSharedPtr(otherPtr)
+        , fRcvCount(0)
+        {}
+
+    SharedPtrOwner(const SharedPtrOwner& otherOwner)
+        : fSharedPtr(otherOwner.fSharedPtr)
+        , fRcvCount(0)
+        {}
 
     SharedPtrType fSharedPtr;
+    std::atomic<unsigned int> fRcvCount;
 };
 
 #endif /* SHMCHUNK_H_ */

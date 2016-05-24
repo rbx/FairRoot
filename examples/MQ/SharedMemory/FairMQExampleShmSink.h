@@ -16,6 +16,7 @@
 #define FAIRMQEXAMPLESHMSINK_H_
 
 #include <string>
+#include <atomic>
 
 #include "FairMQDevice.h"
 

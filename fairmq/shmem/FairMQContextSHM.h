@@ -5,17 +5,30 @@
  *         GNU Lesser General Public Licence version 3 (LGPL) version 3,        *  
  *                  copied verbatim in the file "LICENSE"                       *
  ********************************************************************************/
+/**
+ * FairMQContextSHM.h
+ *
+ * @since 2016-06-01
+ * @author D. Klein, A. Rybalchenko
+ */
 
-#include "runFairMQDevice.h"
-#include "FairMQExampleShmSink.h"
+#ifndef FAIRMQCONTEXTSHM_H_
+#define FAIRMQCONTEXTSHM_H_
 
-namespace bpo = boost::program_options;
-
-void addCustomOptions(bpo::options_description& /*options*/)
+class FairMQContextSHM
 {
-}
+  public:
+    /// Constructor
+    FairMQContextSHM(int numIoThreads);
+    FairMQContextSHM(const FairMQContextSHM&) = delete;
+    FairMQContextSHM operator=(const FairMQContextSHM&) = delete;
 
-FairMQDevicePtr getDevice(const FairMQProgOptions& /*config*/)
-{
-    return new FairMQExampleShmSink();
-}
+    virtual ~FairMQContextSHM();
+    void* GetContext();
+    void Close();
+
+  private:
+    void* fContext;
+};
+
+#endif /* FAIRMQCONTEXTSHM_H_ */
