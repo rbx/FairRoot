@@ -6,29 +6,16 @@
  *                  copied verbatim in the file "LICENSE"                       *
  ********************************************************************************/
 
-#include <iostream>
-
-#include "FairMQLogger.h"
-#include "FairMQProgOptions.h"
+#include "runFairMQDevice.h"
 #include "FairMQExampleShmSink.h"
-#include "runSimpleMQStateMachine.h"
 
-int main(int argc, char** argv)
+namespace bpo = boost::program_options;
+
+void addCustomOptions(bpo::options_description& /*options*/)
 {
-    try
-    {
-        FairMQProgOptions config;
-        config.ParseAll(argc, argv);
+}
 
-        FairMQExampleShmSink sink;
-
-        runStateMachine(sink, config);
-    }
-    catch (std::exception& e)
-    {
-        LOG(ERROR) << "Unhandled Exception: " << e.what() << ", application will now exit";
-        return 1;
-    }
-
-    return 0;
+FairMQDevicePtr getDevice(const FairMQProgOptions& /*config*/)
+{
+    return new FairMQExampleShmSink();
 }

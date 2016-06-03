@@ -8,13 +8,18 @@
                         "name": "meta",
                         "type": "push",
                         "method": "bind",
-                        "address": "ipc://meta"
+                        "sockets": [
+                            { "address": "ipc://meta1" },
+                            { "address": "ipc://meta2" }
+                        ],
+                        "rateLogging": 0
                     },
                     {
                         "name": "ack",
                         "type": "pull",
                         "method": "bind",
-                        "address": "ipc://ack"
+                        "address": "ipc://ack",
+                        "rateLogging": 0
                     }
                 ]
             },
@@ -25,13 +30,15 @@
                         "name": "meta",
                         "type": "pull",
                         "method": "connect",
-                        "address": "ipc://meta"
+                        "address": "ipc://meta1",
+                        "rateLogging": 0
                     },
                     {
                         "name": "ack",
                         "type": "push",
                         "method": "connect",
-                        "address": "ipc://ack"
+                        "address": "ipc://ack",
+                        "rateLogging": 0
                     }
                 ]
             }
