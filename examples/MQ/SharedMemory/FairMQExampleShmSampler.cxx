@@ -17,14 +17,12 @@
 #include <chrono>
 
 #include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/smart_ptr/shared_ptr.hpp>
 
 #include "FairMQExampleShmSampler.h"
 #include "FairMQProgOptions.h"
 #include "FairMQLogger.h"
 
 using namespace std;
-using namespace boost::interprocess;
 
 FairMQExampleShmSampler::FairMQExampleShmSampler()
     : fMsgSize(10000)
@@ -39,7 +37,7 @@ FairMQExampleShmSampler::FairMQExampleShmSampler()
     , fAckMutex()
     , fAckCV()
 {
-    if (shared_memory_object::remove("FairMQSharedMemory"))
+    if (bipc::shared_memory_object::remove("FairMQSharedMemory"))
     {
         LOG(INFO) << "Successfully removed shared memory upon device start.";
     }
@@ -51,7 +49,7 @@ FairMQExampleShmSampler::FairMQExampleShmSampler()
 
 FairMQExampleShmSampler::~FairMQExampleShmSampler()
 {
-    if (shared_memory_object::remove("FairMQSharedMemory"))
+    if (bipc::shared_memory_object::remove("FairMQSharedMemory"))
     {
         LOG(INFO) << "Successfully removed shared memory after the device has stopped.";
     }
@@ -66,14 +64,14 @@ void FairMQExampleShmSampler::Init()
     fMsgSize = fConfig->GetValue<int>("msg-size");
     fMsgRate = fConfig->GetValue<int>("msg-rate");
 
-    SegmentManager::Instance().InitializeSegment("open_or_create", "FairMQSharedMemory", 2000000000);
+    SegmentManager::Instance().InitializeSegment("create_only", "FairMQSharedMemory", 2000000000);
+
     LOG(INFO) << "Created/Opened shared memory segment of 2,000,000,000 bytes. Available are "
-              << SegmentManager::Instance().Segment()->get_free_memory() << " bytes.";
+              << SegmentManager::Instance().Free() << " bytes.";
 }
 
 void FairMQExampleShmSampler::Run()
 {
-    // count sent messages (also used in creating ShmChunk container ID)
     static uint64_t numSentMsgs = 0;
 
     LOG(INFO) << "Starting the benchmark with message size of " << fMsgSize;
@@ -87,37 +85,10 @@ void FairMQExampleShmSampler::Run()
 
     while (CheckCurrentState(RUNNING))
     {
-        // ShmChunk container ID
-        string chunkStr = "c" + to_string(numSentMsgs);
-        // shared pointer ID
-        string ownerStr = "o" + to_string(numSentMsgs);
+        unique_ptr<ShmChunk> chunk(new ShmChunk(fMsgSize));
+        bipc::managed_shared_memory::handle_t handle = chunk->GetHandle();
 
-        SharedPtrOwner* owner = nullptr;
-
-        try
-        {
-            owner = SegmentManager::Instance().Segment()->construct<SharedPtrOwner>(ownerStr.c_str())(
-                make_managed_shared_ptr(SegmentManager::Instance().Segment()->construct<ShmChunk>(chunkStr.c_str())(fMsgSize),
-                                        *(SegmentManager::Instance().Segment()))
-                );
-        }
-        catch (bipc::bad_alloc& ba)
-        {
-            unique_lock<mutex> lock(fAckMutex);
-            fAckCV.wait_for(lock, chrono::milliseconds(500));
-            continue;
-        }
-
-        // move the local shared pointer into the container (to be destroyed after acknowledgement)
-        {
-            unique_lock<mutex> containerLock(fContainerMutex);
-            fPtrs.insert(make_pair(numSentMsgs, move(owner)));
-        }
-
-        // LOG(DEBUG) << "Shared pointer constructed at: " << *ownerStr;
-        // LOG(DEBUG) << "Chunk constructed at: " << chunkStr;
-
-        void* ptr = owner->fSharedPtr->GetData();
+        void* ptr = chunk->GetData();
 
         // write something to memory, otherwise only (incomplete) allocation will be measured
         // memset(ptr, 0, fMsgSize);
@@ -128,27 +99,26 @@ void FairMQExampleShmSampler::Run()
         //     charnum = 97;
         // }
 
-        // LOG(DEBUG) << "chunk handle: " << owner->fSharedPtr->GetHandle();
-        // LOG(DEBUG) << "chunk size: " << owner->fSharedPtr->GetSize();
-        // LOG(DEBUG) << "owner use count: " << owner->fSharedPtr.use_count();
-
         // char* cptr = static_cast<char*>(ptr);
         // LOG(DEBUG) << "check: " << cptr[3];
 
-        FairMQMessagePtr msg(NewSimpleMessage(numSentMsgs));
-        fPtrs.at(numSentMsgs)->fRcvCount += 1;
+        {
+            unique_lock<mutex> containerLock(fContainerMutex);
+            fPtrs.insert(make_pair(handle, move(chunk)));
+        }
+
+        unique_ptr<FairMQMessage> msg(NewSimpleMessage(handle));
 
         if (Send(msg, "meta", 0) >= 0)
         {
-            // LOG(DEBUG) << "Sent meta.";
             fBytesOutNew += fMsgSize;
             ++fMsgOutNew;
             ++numSentMsgs;
         }
         else
         {
-            fPtrs.erase(numSentMsgs);
-            SegmentManager::Instance().Segment()->destroy_ptr(owner);
+            unique_lock<mutex> containerLock(fContainerMutex);
+            fPtrs.erase(handle);
         }
 
         // --fMsgCounter;
@@ -173,22 +143,17 @@ void FairMQExampleShmSampler::ListenForAcks()
 
         if (Receive(msg, "ack") >= 0)
         {
-            uint64_t key = *(static_cast<uint64_t*>(msg->GetData()));
-            // LOG(DEBUG) << "Received ack for: " << key;
+            bipc::managed_shared_memory::handle_t handle = *(static_cast<bipc::managed_shared_memory::handle_t*>(msg->GetData()));
+            // LOG(DEBUG) << "Received ack for: " << handle;
             {
                 unique_lock<mutex> containerLock(fContainerMutex);
-                if (fPtrs.find(key) != fPtrs.end())
+                if (fPtrs.find(handle) != fPtrs.end())
                 {
-                    fPtrs.at(key)->fRcvCount -= 1;
-                    if (fPtrs.at(key)->fRcvCount == 0)
-                    {
-                        SegmentManager::Instance().Segment()->destroy_ptr(fPtrs.at(key));
-                        fPtrs.erase(key);
-                    }
+                    fPtrs.erase(handle);
                 }
                 else
                 {
-                    LOG(WARN) << "Received ack for a key not contained in the container";
+                    // LOG(WARN) << "Received ack for a key not contained in the container";
                 }
                 // LOG(DEBUG) << "Number of chunks in the tracking container: " << fPtrs.size();
             }

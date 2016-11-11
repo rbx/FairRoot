@@ -17,14 +17,12 @@
 #include <chrono>
 
 #include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/smart_ptr/shared_ptr.hpp>
 
 #include "FairMQExampleShmSink.h"
 #include "FairMQLogger.h"
 #include "ShmChunk.h"
 
 using namespace std;
-using namespace boost::interprocess;
 
 FairMQExampleShmSink::FairMQExampleShmSink()
     : fBytesIn(0)
@@ -41,6 +39,7 @@ FairMQExampleShmSink::~FairMQExampleShmSink()
 void FairMQExampleShmSink::Init()
 {
     SegmentManager::Instance().InitializeSegment("open_only", "FairMQSharedMemory");
+
     LOG(INFO) << "Opened shared memory segment 'FairMQSharedMemory'. Available are "
               << SegmentManager::Instance().Segment()->get_free_memory() << " bytes.";
 }
@@ -57,43 +56,53 @@ void FairMQExampleShmSink::Run()
 
         if (Receive(msg, "meta") >= 0)
         {
+            ShmChunk chunk(*(static_cast<bipc::managed_shared_memory::handle_t*>(msg->GetData())), 4);
+
             // get the shared pointer ID from the received message
-            string ownerStr = "o" + to_string(*(static_cast<uint64_t*>(msg->GetData())));
-            // LOG(DEBUG) << "Received message: " << ownerStr;
+            // string ownerStr = "o" + to_string(*(static_cast<uint64_t*>(msg->GetData())));
+            // LOG(DEBUG) << "Received message: " << *(static_cast<bipc::managed_shared_memory::handle_t*>(msg->GetData()));
 
             // find the shared pointer in shared memory with its ID
-            SharedPtrOwner* owner = SegmentManager::Instance().Segment()->find<SharedPtrOwner>(ownerStr.c_str()).first;
+            // SharedPtrOwner* owner = SegmentManager::Instance().Segment()->find<SharedPtrOwner>(ownerStr.c_str()).first;
             // LOG(DEBUG) << "owner use count: " << owner->fSharedPtr.use_count();
             // create a local shared pointer from the received one (increments the reference count)
-            SharedPtrType localPtr = owner->fSharedPtr;
+            // SharedPtrType localPtr = owner->fSharedPtr;
             // LOG(DEBUG) << "owner use count: " << owner->fSharedPtr.use_count();
 
             // reply with the same string as an acknowledgement
+            // if (Send(msg, "ack") >= 0)
+            // {
+            //     // LOG(DEBUG) << "Sent acknowledgement.";
+            // }
+
+            void* ptr = chunk.GetData();
+
+            // if (localPtr)
+            // {
+            //     // get memory address from the handle
+            //     void* ptr = localPtr->GetData();
+
+            //     // LOG(DEBUG) << "chunk handle: " << localPtr->GetHandle();
+            //     // LOG(DEBUG) << "chunk size: " << localPtr->GetSize();
+
+            //     fBytesInNew += localPtr->GetSize();
+                 ++fMsgInNew;
+
+                // char* cptr = static_cast<char*>(ptr);
+                // LOG(DEBUG) << "check: " << cptr[3];
+            // }
+            // else
+            // {
+            //     LOG(WARN) << "Shared pointer is zero.";
+            // }
+
+            // LOG(DEBUG) << "destroying local shared pointer";
+
+            // CIRCULAR: reply with the same string as an acknowledgement
             if (Send(msg, "ack") >= 0)
             {
                 // LOG(DEBUG) << "Sent acknowledgement.";
             }
-
-            if (localPtr)
-            {
-                // get memory address from the handle
-                void* ptr = localPtr->GetData();
-
-                // LOG(DEBUG) << "chunk handle: " << localPtr->GetHandle();
-                // LOG(DEBUG) << "chunk size: " << localPtr->GetSize();
-
-                fBytesInNew += localPtr->GetSize();
-                ++fMsgInNew;
-
-                // char* cptr = static_cast<char*>(ptr);
-                // LOG(DEBUG) << "check: " << cptr[3];
-            }
-            else
-            {
-                LOG(WARN) << "Shared pointer is zero.";
-            }
-
-            // LOG(DEBUG) << "destroying local shared pointer";
 
             ++numReceivedMsgs;
         }

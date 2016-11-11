@@ -43,7 +43,8 @@ class FairMQExampleShmSampler : public FairMQDevice
     std::atomic<unsigned long long> fBytesOutNew;
     std::atomic<unsigned long long> fMsgOutNew;
 
-    std::unordered_map<uint64_t, SharedPtrOwner*> fPtrs;
+    // std::unordered_map<uint64_t, SharedPtrOwner*> fPtrs;
+    std::unordered_map<bipc::managed_shared_memory::handle_t, std::unique_ptr<ShmChunk>> fPtrs;
 
     std::mutex fContainerMutex;
     std::mutex fAckMutex;
