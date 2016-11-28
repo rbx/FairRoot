@@ -16,6 +16,7 @@
 #include <chrono>
 
 #include <boost/interprocess/managed_shared_memory.hpp>
+#include <boost/interprocess/sync/named_condition.hpp>
 #include <boost/interprocess/sync/named_mutex.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
 
@@ -121,16 +122,17 @@ class SegmentManager
             }
             else
             {
+                while (fReadIndex - fWriteIndex < size)
+                {
+                    fFullCondition.wait(lock);
+                }
+
                 // if (fReadIndex - fWriteIndex >= size)
                 // {
                     fWriteIndex = 0;
                     oldWriteIndex = fWriteIndex;
                     fWriteIndex += size;
                     fSize += size;
-                // }
-                // else
-                // {
-                    // return nullptr;
                 // }
             }
 
@@ -171,6 +173,7 @@ class SegmentManager
                 fReadIndex += size;
                 fSize -= size;
             }
+            fFullCondition.notify_one();
         }
         else
         {
@@ -199,6 +202,7 @@ class SegmentManager
   private:
     SegmentManager()
         : fSegment(nullptr)
+        , fFullCondition(bipc::open_or_create, "FairMQFullCondition")
         , fMutex(bipc::open_or_create, "FairMQNamedMutex")
         , fBuffer(nullptr)
         , fCapacity(0)
@@ -208,6 +212,7 @@ class SegmentManager
     {}
 
     bipc::managed_shared_memory* fSegment;
+    bipc::named_condition fFullCondition;
     bipc::named_mutex fMutex;
 
     char* fBuffer;
@@ -215,6 +220,12 @@ class SegmentManager
     size_t fSize;
     size_t fReadIndex;
     size_t fWriteIndex;
+};
+
+struct alignas(16) ShmChunkHeader
+{
+    std::atomic<size_t> fSize;
+    std::atomic<int32_t> fRefCount;
 };
 
 class ShmChunk
@@ -225,11 +236,7 @@ class ShmChunk
         , fSize(size)
         , fSending(true)
     {
-        void* ptr = nullptr;
-        // while (!ptr)
-        // {
-            ptr = SegmentManager::Instance().CreateChunk(size);
-        // }
+        void* ptr = SegmentManager::Instance().CreateChunk(size);
         fHandle = SegmentManager::Instance().Segment()->get_handle_from_address(ptr);
     }
 
