@@ -122,18 +122,17 @@ class SegmentManager
             }
             else
             {
-                while (fReadIndex - fWriteIndex < size)
+                fWriteIndex = 0;
+                oldWriteIndex = fWriteIndex;
+
+                while (fReadIndex - fWriteIndex > size)
                 {
+                    LOG(INFO) << "full, waiting...";
                     fFullCondition.wait(lock);
                 }
 
-                // if (fReadIndex - fWriteIndex >= size)
-                // {
-                    fWriteIndex = 0;
-                    oldWriteIndex = fWriteIndex;
-                    fWriteIndex += size;
-                    fSize += size;
-                // }
+                fWriteIndex += size;
+                fSize += size;
             }
 
             return fBuffer + oldWriteIndex;
@@ -210,6 +209,13 @@ class SegmentManager
         , fReadIndex(0)
         , fWriteIndex(0)
     {}
+
+    ~SegmentManager()
+    {
+        LOG(DEBUG) << "Destroying SegmentManager";
+        bipc::named_condition::remove("FairMQFullCondition");
+        bipc::named_mutex::remove("FairMQNamedMutex");
+    }
 
     bipc::managed_shared_memory* fSegment;
     bipc::named_condition fFullCondition;
