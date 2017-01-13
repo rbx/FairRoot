@@ -12,11 +12,13 @@
 
 using namespace std;
 
+static string gTransportName = "shmem";
+
 FairMQTransportFactorySHM::FairMQTransportFactorySHM()
 {
     int major, minor, patch;
     zmq_version(&major, &minor, &patch);
-    LOG(DEBUG) << "Using ZeroMQ (" << major << "." << minor << "." << patch << ") & "
+    LOG(DEBUG) << "Transport: Using ZeroMQ (" << major << "." << minor << "." << patch << ") & "
                << "boost::interprocess (" << (BOOST_VERSION / 100000) << "." << (BOOST_VERSION / 100 % 1000) << "." << (BOOST_VERSION % 100) << ")";
 }
 
@@ -53,4 +55,9 @@ FairMQPollerPtr FairMQTransportFactorySHM::CreatePoller(const unordered_map<stri
 FairMQPollerPtr FairMQTransportFactorySHM::CreatePoller(const FairMQSocket& cmdSocket, const FairMQSocket& dataSocket) const
 {
     return unique_ptr<FairMQPoller>(new FairMQPollerSHM(cmdSocket, dataSocket));
+}
+
+std::string FairMQTransportFactorySHM::GetName() const
+{
+    return gTransportName;
 }

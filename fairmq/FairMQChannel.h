@@ -67,8 +67,12 @@ class FairMQChannel
     std::string GetMethod() const;
 
     /// Get socket address (e.g. "tcp://127.0.0.1:5555" or "ipc://abc")
-    /// @return Returns socket type (e.g. "tcp://127.0.0.1:5555" or "ipc://abc")
+    /// @return Returns socket address (e.g. "tcp://127.0.0.1:5555" or "ipc://abc")
     std::string GetAddress() const;
+
+    /// Get channel transport ("default", "zeromq", "nanomsg" or "shmem")
+    /// @return Returns channel transport (e.g. "tcp://127.0.0.1:5555" or "ipc://abc")
+    std::string GetTransport() const;
 
     /// Get socket send buffer size (in number of messages)
     /// @return Returns socket send buffer size (in number of messages)
@@ -99,8 +103,12 @@ class FairMQChannel
     void UpdateMethod(const std::string& method);
 
     /// Set socket address
-    /// @param address Socket address (e.g. "tcp://127.0.0.1:5555" or "ipc://abc")
+    /// @param Socket address (e.g. "tcp://127.0.0.1:5555" or "ipc://abc")
     void UpdateAddress(const std::string& address);
+
+    /// Set channel transport
+    /// @param transport transport string ("default", "zeromq", "nanomsg" or "shmem")
+    void UpdateTransport(const std::string& transport);
 
     /// Set socket send buffer size
     /// @param sndBufSize Socket send buffer size (in number of messages)
@@ -165,10 +173,10 @@ class FairMQChannel
     /// @param msg Constant reference of unique_ptr to a FairMQMessage
     /// @return Number of bytes that have been queued. -2 If queueing was not possible.
     /// In case of errors, returns -1.
-    inline int SendPart(const std::unique_ptr<FairMQMessage>& msg) const
-    {
-        return fSocket->Send(msg.get(), fSndMoreFlag);
-    }
+    // inline int SendPart(const std::unique_ptr<FairMQMessage>& msg) const
+    // {
+    //     return fSocket->Send(msg.get(), fSndMoreFlag);
+    // }
 
     /// Queues the current message as a part of a multi-part message without blocking
     /// @details SendPart method queues the provided message as a part of a multi-part message without blocking.
@@ -177,10 +185,10 @@ class FairMQChannel
     /// @param msg Constant reference of unique_ptr to a FairMQMessage
     /// @return Number of bytes that have been queued. -2 If queueing was not possible.
     /// In case of errors, returns -1.
-    inline int SendPartAsync(const std::unique_ptr<FairMQMessage>& msg) const
-    {
-        return fSocket->Send(msg.get(), fSndMoreFlag|fNoBlockFlag);
-    }
+    // inline int SendPartAsync(const std::unique_ptr<FairMQMessage>& msg) const
+    // {
+    //     return fSocket->Send(msg.get(), fSndMoreFlag|fNoBlockFlag);
+    // }
 
     /// Send a vector of messages
     ///
@@ -242,36 +250,40 @@ class FairMQChannel
     bool ExpectsAnotherPart() const;
 
     // DEPRECATED socket method wrappers with raw pointers and flag checks
-    int Send(FairMQMessage* msg, const std::string& flag = "", int sndTimeoutInMs = -1) const;
-    int Send(FairMQMessage* msg, const int flags, int sndTimeoutInMs = -1) const;
-    int Receive(FairMQMessage* msg, const std::string& flag = "", int rcvTimeoutInMs = -1) const;
-    int Receive(FairMQMessage* msg, const int flags, int rcvTimeoutInMs = -1) const;
+    // int Send(FairMQMessage* msg, const std::string& flag = "", int sndTimeoutInMs = -1) const;
+    // int Send(FairMQMessage* msg, const int flags, int sndTimeoutInMs = -1) const;
+    // int Receive(FairMQMessage* msg, const std::string& flag = "", int rcvTimeoutInMs = -1) const;
+    // int Receive(FairMQMessage* msg, const int flags, int rcvTimeoutInMs = -1) const;
 
     // TODO: this might go to some base utility library
     static void Tokenize(std::vector<std::string>& output, const std::string& input, const std::string delimiters = ",");
+
+    FairMQTransportFactory* Transport();
 
   private:
     std::string fType;
     std::string fMethod;
     std::string fAddress;
+    std::string fTransport;
     int fSndBufSize;
     int fRcvBufSize;
     int fSndKernelSize;
     int fRcvKernelSize;
     int fRateLogging;
 
-    std::string fChannelName;
+    std::string fName;
     std::atomic<bool> fIsValid;
 
     FairMQPollerPtr fPoller;
-    FairMQSocketPtr fCmdSocket;
+    FairMQSocketPtr fChannelCmdSocket;
 
     std::shared_ptr<FairMQTransportFactory> fTransportFactory;
 
     int fNoBlockFlag;
     int fSndMoreFlag;
 
-    bool InitCommandInterface(std::shared_ptr<FairMQTransportFactory> factory, int numIoThreads);
+    void InitTransport(std::shared_ptr<FairMQTransportFactory> factory);
+    bool InitCommandInterface(int numIoThreads);
 
     bool HandleUnblock() const;
 

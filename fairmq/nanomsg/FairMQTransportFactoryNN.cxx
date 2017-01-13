@@ -16,9 +16,11 @@
 
 using namespace std;
 
+static string gTransportName = "nanomsg";
+
 FairMQTransportFactoryNN::FairMQTransportFactoryNN()
 {
-    LOG(INFO) << "Using nanomsg library";
+    LOG(DEBUG) << "Transport: Using nanomsg library";
 }
 
 FairMQMessagePtr FairMQTransportFactoryNN::CreateMessage() const
@@ -54,4 +56,9 @@ FairMQPollerPtr FairMQTransportFactoryNN::CreatePoller(const unordered_map<strin
 FairMQPollerPtr FairMQTransportFactoryNN::CreatePoller(const FairMQSocket& cmdSocket, const FairMQSocket& dataSocket) const
 {
     return unique_ptr<FairMQPoller>(new FairMQPollerNN(cmdSocket, dataSocket));
+}
+
+std::string FairMQTransportFactoryNN::GetName() const
+{
+    return gTransportName;
 }

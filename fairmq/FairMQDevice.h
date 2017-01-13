@@ -295,8 +295,11 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
     /// Configures the device with a transport factory (DEPRECATED)
     /// @param factory  Pointer to the transport factory object
     void SetTransport(FairMQTransportFactory* factory);
-    /// Configures the device with a transport factory
-    /// @param transport  Transport string ("zeromq"/"nanomsg")
+    /// Adds a transport to the device if it doesn't exist
+    /// @param transport  Transport string ("zeromq"/"nanomsg"/"shmem")
+    std::shared_ptr<FairMQTransportFactory> AddTransport(const std::string& transport);
+    /// Sets the default transport for the device
+    /// @param transport  Transport string ("zeromq"/"nanomsg"/"shmem")
     void SetTransport(const std::string& transport = "zeromq");
 
     void SetConfig(FairMQProgOptions& config);
@@ -338,6 +341,7 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
   protected:
     std::string fId; ///< Device ID
     std::string fNetworkInterface; ///< Network interface to use for dynamic binding
+    std::string fDefaultTransport; ///< Default transport for the device
 
     int fMaxInitializationAttempts; ///< Timeout for the initialization
 
@@ -348,9 +352,10 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
 
     int fLogIntervalInMs; ///< Interval for logging the socket transfer rates
 
-    FairMQSocketPtr fCmdSocket; ///< Socket used for the internal unblocking mechanism
+    std::vector<FairMQSocketPtr> fDeviceCmdSockets; ///< Socket used for the internal unblocking mechanism
 
     std::shared_ptr<FairMQTransportFactory> fTransportFactory; ///< Transport factory
+    std::unordered_map<std::string, std::shared_ptr<FairMQTransportFactory>> fTransports; ///< Container for transports
 
     /// Additional user initialization (can be overloaded in child classes). Prefer to use InitTask().
     virtual void Init();
@@ -403,14 +408,8 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
     /// Unblocks blocking channel send/receive calls
     void Unblock();
 
-    /// Binds channel in the list
-    void BindChannels(std::list<FairMQChannel*>& chans);
-    /// Connects channel in the list
-    void ConnectChannels(std::list<FairMQChannel*>& chans);
-    /// Binds a single channel (used in InitWrapper)
-    bool BindChannel(FairMQChannel& ch);
-    /// Connects a single channel (used in InitWrapper)
-    bool ConnectChannel(FairMQChannel& ch);
+    /// Attach (bind/connect) channels in the list
+    void AttachChannels(std::list<FairMQChannel*>& chans);
 
     /// Sets up and connects/binds a socket to an endpoint
     /// return a string with the actual endpoint if it happens

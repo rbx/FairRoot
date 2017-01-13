@@ -54,13 +54,15 @@ FairMQDevice::FairMQDevice()
     , fConfig(nullptr)
     , fId()
     , fNetworkInterface()
+    , fDefaultTransport()
     , fMaxInitializationAttempts(120)
     , fNumIoThreads(1)
     , fPortRangeMin(22000)
     , fPortRangeMax(32000)
     , fLogIntervalInMs(1000)
-    , fCmdSocket(nullptr)
+    , fDeviceCmdSockets()
     , fTransportFactory(nullptr)
+    , fTransports()
     , fInitialValidationFinished(false)
     , fInitialValidationCondition()
     , fInitialValidationMutex()
@@ -114,7 +116,7 @@ void FairMQDevice::SignalHandler(int signal)
     }
 }
 
-void FairMQDevice::ConnectChannels(list<FairMQChannel*>& chans)
+void FairMQDevice::AttachChannels(list<FairMQChannel*>& chans)
 {
     auto itr = chans.begin();
 
@@ -124,38 +126,12 @@ void FairMQDevice::ConnectChannels(list<FairMQChannel*>& chans)
         {
             if (AttachChannel(**itr))
             {
-                (*itr)->InitCommandInterface(fTransportFactory, fNumIoThreads);
+                (*itr)->InitCommandInterface(fNumIoThreads);
                 chans.erase(itr++);
             }
             else
             {
-                LOG(ERROR) << "failed to connect channel " << (*itr)->fChannelName;
-                ++itr;
-            }
-        }
-        else
-        {
-            ++itr;
-        }
-    }
-}
-
-void FairMQDevice::BindChannels(list<FairMQChannel*>& chans)
-{
-    auto itr = chans.begin();
-
-    while (itr != chans.end())
-    {
-        if ((*itr)->ValidateChannel())
-        {
-            if (AttachChannel(**itr))
-            {
-                (*itr)->InitCommandInterface(fTransportFactory, fNumIoThreads);
-                chans.erase(itr++);
-            }
-            else
-            {
-                LOG(ERROR) << "failed to bind channel " << (*itr)->fChannelName;
+                LOG(ERROR) << "failed to attach channel " << (*itr)->fName << " (" << (*itr)->fMethod << ")";
                 ++itr;
             }
         }
@@ -174,10 +150,10 @@ void FairMQDevice::InitWrapper()
         exit(EXIT_FAILURE);
     }
 
-    if (!fCmdSocket)
+    if (fDeviceCmdSockets.empty())
     {
-        fCmdSocket = fTransportFactory->CreateSocket("pub", "device-commands", fNumIoThreads, fId);
-        fCmdSocket->Bind("inproc://commands");
+        fDeviceCmdSockets.push_back(fTransportFactory->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
+        fDeviceCmdSockets[0]->Bind("inproc://commands");
 
         FairMQMessagePtr msg(fTransportFactory->CreateMessage());
         msg->SetDeviceId(fId);
@@ -192,12 +168,13 @@ void FairMQDevice::InitWrapper()
     {
         for (auto vi = (mi->second).begin(); vi != (mi->second).end(); ++vi)
         {
+            // set channel name: name + vector index
+            stringstream ss;
+            ss << mi->first << "[" << vi - (mi->second).begin() << "]";
+            vi->fName = ss.str();
+
             if (vi->fMethod == "bind")
             {
-                // set channel name: name + vector index
-                stringstream ss;
-                ss << mi->first << "[" << vi - (mi->second).begin() << "]";
-                vi->fChannelName = ss.str();
                 // if binding address is not specified, set it up to try getting it from the configured network interface
                 if (vi->fAddress == "unspecified" || vi->fAddress == "")
                 {
@@ -208,19 +185,11 @@ void FairMQDevice::InitWrapper()
             }
             else if (vi->fMethod == "connect")
             {
-                // set channel name: name + vector index
-                stringstream ss;
-                ss << mi->first << "[" << vi - (mi->second).begin() << "]";
-                vi->fChannelName = ss.str();
                 // fill the uninitialized list
                 uninitializedConnectingChannels.push_back(&(*vi));
             }
             else if (vi->fAddress.find_first_of("@+>") != string::npos)
             {
-                // set channel name: name + vector index
-                stringstream ss;
-                ss << mi->first << "[" << vi - (mi->second).begin() << "]";
-                vi->fChannelName = ss.str();
                 // fill the uninitialized list
                 uninitializedConnectingChannels.push_back(&(*vi));
             }
@@ -234,7 +203,7 @@ void FairMQDevice::InitWrapper()
 
     // Bind channels. Here one run is enough, because bind settings should be available locally
     // If necessary this could be handled in the same way as the connecting channels
-    BindChannels(uninitializedBindingChannels);
+    AttachChannels(uninitializedBindingChannels);
     // notify parent thread about completion of first validation.
     {
         lock_guard<mutex> lock(fInitialValidationMutex);
@@ -246,7 +215,7 @@ void FairMQDevice::InitWrapper()
     int numAttempts = 0;
     while (!uninitializedConnectingChannels.empty())
     {
-        ConnectChannels(uninitializedConnectingChannels);
+        AttachChannels(uninitializedConnectingChannels);
         if (++numAttempts > fMaxInitializationAttempts)
         {
             LOG(ERROR) << "could not connect all channels after " << fMaxInitializationAttempts << " attempts";
@@ -275,36 +244,22 @@ void FairMQDevice::Init()
 {
 }
 
-bool FairMQDevice::BindChannel(FairMQChannel& ch)
-{
-    LOG(DEBUG) << "Initializing channel " << ch.fChannelName << " (" << ch.fType << ")";
-    // initialize the socket
-    ch.fSocket = fTransportFactory->CreateSocket(ch.fType, ch.fChannelName, fNumIoThreads, fId);
-    // set high water marks
-    ch.fSocket->SetOption("snd-hwm", &(ch.fSndBufSize), sizeof(ch.fSndBufSize));
-    ch.fSocket->SetOption("rcv-hwm", &(ch.fRcvBufSize), sizeof(ch.fRcvBufSize));
-
-    LOG(DEBUG) << "Binding channel " << ch.fChannelName << " on " << ch.fAddress;
-
-    return BindEndpoint(*ch.fSocket, ch.fAddress);
-}
-
-bool FairMQDevice::ConnectChannel(FairMQChannel& ch)
-{
-    LOG(DEBUG) << "Initializing channel " << ch.fChannelName << " (" << ch.fType << ")";
-    // initialize the socket
-    ch.fSocket = fTransportFactory->CreateSocket(ch.fType, ch.fChannelName, fNumIoThreads, fId);
-    // set high water marks
-    ch.fSocket->SetOption("snd-hwm", &(ch.fSndBufSize), sizeof(ch.fSndBufSize));
-    ch.fSocket->SetOption("rcv-hwm", &(ch.fRcvBufSize), sizeof(ch.fRcvBufSize));
-    // connect
-    LOG(DEBUG) << "Connecting channel " << ch.fChannelName << " to " << ch.fAddress;
-    ConnectEndpoint(*ch.fSocket, ch.fAddress);
-    return true;
-}
-
 bool FairMQDevice::AttachChannel(FairMQChannel& ch)
 {
+    if (!ch.fTransportFactory)
+    {
+        if (ch.fTransport == "default" || ch.fTransport == fDefaultTransport)
+        {
+            LOG(DEBUG) << ch.fName << ": using default transport";
+            ch.InitTransport(fTransportFactory);
+        }
+        else
+        {
+            LOG(DEBUG) << ch.fName << ": default transport (" << fDefaultTransport << ") overriden to " << ch.fTransport;
+            ch.InitTransport(AddTransport(ch.fTransport));
+        }
+    }
+
     std::vector<std::string> endpoints;
     FairMQChannel::Tokenize(endpoints, ch.fAddress);
     for (auto& endpoint : endpoints)
@@ -312,7 +267,8 @@ bool FairMQDevice::AttachChannel(FairMQChannel& ch)
         //(re-)init socket
         if (!ch.fSocket)
         {
-            ch.fSocket = fTransportFactory->CreateSocket(ch.fType, ch.fChannelName, fNumIoThreads, fId);
+            ch.fSocket = ch.fTransportFactory->CreateSocket(ch.fType, ch.fName, fNumIoThreads, fId);
+            // ch.fSocket = fTransportFactory->CreateSocket(ch.fType, ch.fName, fNumIoThreads, fId);
         }
 
         // set high water marks
@@ -362,7 +318,7 @@ bool FairMQDevice::AttachChannel(FairMQChannel& ch)
         }
         endpoint += address;
 
-        LOG(DEBUG) << "Attached channel " << ch.fChannelName << " to " << endpoint << (bind ? " (bind) " : " (connect) ");
+        LOG(DEBUG) << "Attached channel " << ch.fName << " to " << endpoint << (bind ? " (bind) " : " (connect) ");
 
         // after the book keeping is done, exit in case of errors
         if (!rc)
@@ -447,7 +403,7 @@ void FairMQDevice::SortChannel(const string& name, const bool reindex)
                 // set channel name: name + vector index
                 stringstream ss;
                 ss << name << "[" << vi - fChannels.at(name).begin() << "]";
-                vi->fChannelName = ss.str();
+                vi->fName = ss.str();
             }
         }
     }
@@ -463,7 +419,7 @@ void FairMQDevice::PrintChannel(const string& name)
     {
         for (auto vi = fChannels[name].begin(); vi != fChannels[name].end(); ++vi)
         {
-            LOG(INFO) << vi->fChannelName << ": "
+            LOG(INFO) << vi->fName << ": "
                       << vi->fType << " | "
                       << vi->fMethod << " | "
                       << vi->fAddress << " | "
@@ -497,7 +453,10 @@ void FairMQDevice::RunWrapper()
     std::thread rateLogger(&FairMQDevice::LogSocketRates, this);
 
     FairMQChannel::fInterrupted = false;
-    fCmdSocket->Resume();
+    for (auto& s : fDeviceCmdSockets)
+    {
+        s->Resume();
+    }
 
     try
     {
@@ -597,7 +556,7 @@ void FairMQDevice::RunWrapper()
     {
         LOG(ERROR) << "Out of Range error: " << oor.what();
         LOG(ERROR) << "Incorrect channel name in the Run() or the configuration?";
-        ChangeState(ERROR);
+        // ChangeState(ERROR_FOUND);
     }
 
     if (CheckCurrentState(RUNNING))
@@ -753,38 +712,120 @@ int FairMQDevice::GetProperty(const int key, const int default_ /*= 0*/)
     }
 }
 
+// DEPRECATED, use the string version
 void FairMQDevice::SetTransport(FairMQTransportFactory* factory)
 {
-    fTransportFactory = shared_ptr<FairMQTransportFactory>(factory);
+    if (fTransports.empty())
+    {
+        fTransportFactory = shared_ptr<FairMQTransportFactory>(factory);
+        pair<string, shared_ptr<FairMQTransportFactory>> t(fTransportFactory->GetName().c_str(), fTransportFactory);
+        fTransports.insert(t);
+    }
+    else
+    {
+        LOG(ERROR) << "Transports container is not empty when setting transport. Setting twice?";
+        ChangeState(ERROR_FOUND);
+    }
+}
+
+shared_ptr<FairMQTransportFactory> FairMQDevice::AddTransport(const string& transport)
+{
+    unordered_map<string, shared_ptr<FairMQTransportFactory>>::const_iterator i = fTransports.find(transport);
+
+    if (i == fTransports.end())
+    {
+        shared_ptr<FairMQTransportFactory> tr;
+
+        if (transport == "zeromq")
+        {
+            tr = make_shared<FairMQTransportFactoryZMQ>();
+        }
+        else if (transport == "shmem")
+        {
+            tr = make_shared<FairMQTransportFactorySHM>();
+        }
+#ifdef NANOMSG_FOUND
+        else if (transport == "nanomsg")
+        {
+            tr = make_shared<FairMQTransportFactoryNN>();
+        }
+#endif
+        else
+        {
+            LOG(ERROR) << "Unavailable transport requested: "
+                       << "\"" << transport << "\""
+                       << ". Available are: "
+                       << "\"zeromq\""
+                       << "\"shmem\""
+#ifdef NANOMSG_FOUND
+                       << ", \"nanomsg\""
+#endif
+                       << ". Exiting.";
+            exit(EXIT_FAILURE);
+        }
+
+        LOG(DEBUG) << "Adding '" << transport << "' transport to the device.";
+
+        pair<string, shared_ptr<FairMQTransportFactory>> trPair(transport.c_str(), tr);
+        fTransports.insert(trPair);
+
+        fDeviceCmdSockets.push_back(tr->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
+        fDeviceCmdSockets.back()->Bind("inproc://commands");
+
+        FairMQMessagePtr msg(tr->CreateMessage());
+        msg->SetDeviceId(fId);
+
+        return move(tr);
+    }
+    else
+    {
+        LOG(DEBUG) << "Reusing existing '" << transport << "' transport.";
+        return i->second;
+    }
 }
 
 void FairMQDevice::SetTransport(const string& transport)
 {
-    if (transport == "zeromq")
+    if (fTransports.empty())
     {
-        fTransportFactory = make_shared<FairMQTransportFactoryZMQ>();
+        LOG(DEBUG) << "Requesting '" << transport << "' as default transport for the device";
+        fTransportFactory = AddTransport(transport);
+//         if (transport == "zeromq")
+//         {
+//             fTransportFactory = make_shared<FairMQTransportFactoryZMQ>();
+//         }
+//         else if (transport == "shmem")
+//         {
+//             fTransportFactory = make_shared<FairMQTransportFactorySHM>();
+//         }
+// #ifdef NANOMSG_FOUND
+//         else if (transport == "nanomsg")
+//         {
+//             fTransportFactory = make_shared<FairMQTransportFactoryNN>();
+//         }
+// #endif
+//         else
+//         {
+//             LOG(ERROR) << "Unavailable transport requested: "
+//                        << "\"" << transport << "\""
+//                        << ". Available are: "
+//                        << "\"zeromq\""
+//                        << "\"shmem\""
+// #ifdef NANOMSG_FOUND
+//                        << ", \"nanomsg\""
+// #endif
+//                        << ". Exiting.";
+//             exit(EXIT_FAILURE);
+//         }
+
+
+//         pair<string, shared_ptr<FairMQTransportFactory>> t(transport.c_str(), fTransportFactory);
+//         fTransports.insert(t);
     }
-    else if (transport == "shmem")
-    {
-        fTransportFactory = make_shared<FairMQTransportFactorySHM>();
-    }
-#ifdef NANOMSG_FOUND
-    else if (transport == "nanomsg")
-    {
-        fTransportFactory = make_shared<FairMQTransportFactoryNN>();
-    }
-#endif
     else
     {
-        LOG(ERROR) << "Unavailable transport implementation requested: "
-                   << "\"" << transport << "\""
-                   << ". Available are: "
-                   << "\"zeromq\""
-#ifdef NANOMSG_FOUND
-                   << ", \"nanomsg\""
-#endif
-                   << ". Exiting.";
-        exit(EXIT_FAILURE);
+        LOG(ERROR) << "Transports container is not empty when setting transport. Setting default twice?";
+        ChangeState(ERROR_FOUND);
     }
 }
 
@@ -793,7 +834,8 @@ void FairMQDevice::SetConfig(FairMQProgOptions& config)
     LOG(DEBUG) << "PID: " << getpid();
     fConfig = &config;
     fChannels = config.GetFairMQMap();
-    SetTransport(config.GetValue<string>("transport"));
+    fDefaultTransport = config.GetValue<string>("transport");
+    SetTransport(fDefaultTransport);
     fId = config.GetValue<string>("id");
     fNetworkInterface = config.GetValue<string>("network-interface");
     fNumIoThreads = config.GetValue<int>("io-threads");
@@ -902,7 +944,7 @@ void FairMQDevice::LogSocketRates()
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    LOG(DEBUG) << "FairMQDevice::LogSocketRates() stopping";
+    // LOG(DEBUG) << "FairMQDevice::LogSocketRates() stopping";
 }
 
 void FairMQDevice::InteractiveStateLoop()
@@ -1005,9 +1047,12 @@ void FairMQDevice::InteractiveStateLoop()
 void FairMQDevice::Unblock()
 {
     FairMQChannel::fInterrupted = true;
-    fCmdSocket->Interrupt();
-    FairMQMessagePtr cmd(fTransportFactory->CreateMessage());
-    fCmdSocket->Send(cmd.get(), 0);
+    for (auto& s : fDeviceCmdSockets)
+    {
+        s->Interrupt();
+        FairMQMessagePtr cmd(fTransportFactory->CreateMessage());
+        s->Send(cmd.get(), 0);
+    }
 }
 
 void FairMQDevice::ResetTaskWrapper()
@@ -1041,8 +1086,8 @@ void FairMQDevice::Reset()
 
             vi.fPoller = nullptr;
 
-            vi.fCmdSocket->Close();
-            vi.fCmdSocket = nullptr;
+            vi.fChannelCmdSocket->Close();
+            vi.fChannelCmdSocket = nullptr;
         }
     }
 }
@@ -1055,10 +1100,14 @@ bool FairMQDevice::Terminated()
 void FairMQDevice::Terminate()
 {
     // Termination signal has to be sent only once to any socket.
-    if (fCmdSocket)
+    for (auto& s : fDeviceCmdSockets)
     {
-        fCmdSocket->Terminate();
+        s->Terminate();
     }
+    // if (!fDeviceCmdSockets.empty())
+    // {
+    //     fDeviceCmdSockets[0]->Terminate();
+    // }
 }
 
 void FairMQDevice::Shutdown()
@@ -1075,17 +1124,22 @@ void FairMQDevice::Shutdown()
             {
                 vi.fSocket->Close();
             }
-            if (vi.fCmdSocket)
+            if (vi.fChannelCmdSocket)
             {
-                vi.fCmdSocket->Close();
+                vi.fChannelCmdSocket->Close();
             }
         }
     }
 
-    if (fCmdSocket)
+    for (auto& s : fDeviceCmdSockets)
     {
-        fCmdSocket->Close();
+        s->Close();
     }
+
+    // if (!fDeviceCmdSockets.empty())
+    // {
+    //     fDeviceCmdSockets[0]->Close();
+    // }
 
     LOG(DEBUG) << "Closed all sockets!";
 }

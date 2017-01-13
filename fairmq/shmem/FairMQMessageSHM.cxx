@@ -82,7 +82,7 @@ bool FairMQMessageSHM::InitializeChunk(const size_t size)
         }
         catch (bipc::bad_alloc& ba)
         {
-            LOG(WARN) << "Shared memory full...";
+            // LOG(WARN) << "Shared memory full...";
             this_thread::sleep_for(chrono::milliseconds(50));
             if (fInterrupted)
             {
@@ -282,7 +282,7 @@ void FairMQMessageSHM::CloseMessage()
     {
         if (fOwner && !fQueued)
         {
-            LOG(WARN) << "Destroying unsent message";
+            // LOG(WARN) << "Destroying unsent message";
             Manager::Instance().Segment()->destroy_ptr(fOwner);
             fOwner = nullptr;
         }
