@@ -52,7 +52,7 @@ FairMQContextSHM::~FairMQContextSHM()
     }
     else
     {
-        printf("Did not remove shared memory after the device stopped. Alredy removed?\n");
+        printf("Did not remove shared memory after the device stopped. Already removed?\n");
     }
 }
 

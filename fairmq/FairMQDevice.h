@@ -352,10 +352,9 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
 
     int fLogIntervalInMs; ///< Interval for logging the socket transfer rates
 
-    std::vector<FairMQSocketPtr> fDeviceCmdSockets; ///< Socket used for the internal unblocking mechanism
-
     std::shared_ptr<FairMQTransportFactory> fTransportFactory; ///< Transport factory
     std::unordered_map<std::string, std::shared_ptr<FairMQTransportFactory>> fTransports; ///< Container for transports
+    std::unordered_map<std::string, FairMQSocketPtr> fDeviceCmdSockets; ///< Sockets used for the internal unblocking mechanism
 
     /// Additional user initialization (can be overloaded in child classes). Prefer to use InitTask().
     virtual void Init();

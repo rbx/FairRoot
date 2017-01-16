@@ -60,9 +60,9 @@ FairMQDevice::FairMQDevice()
     , fPortRangeMin(22000)
     , fPortRangeMax(32000)
     , fLogIntervalInMs(1000)
-    , fDeviceCmdSockets()
     , fTransportFactory(nullptr)
     , fTransports()
+    , fDeviceCmdSockets()
     , fInitialValidationFinished(false)
     , fInitialValidationCondition()
     , fInitialValidationMutex()
@@ -152,8 +152,16 @@ void FairMQDevice::InitWrapper()
 
     if (fDeviceCmdSockets.empty())
     {
-        fDeviceCmdSockets.push_back(fTransportFactory->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
-        fDeviceCmdSockets[0]->Bind("inproc://commands");
+        auto p = fDeviceCmdSockets.emplace(fTransportFactory->GetName().c_str(), fTransportFactory->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
+        if (p.second)
+        {
+            p.first->second->Bind("inproc://commands");
+        }
+        else
+        {
+            LOG(ERROR) << "bla";
+            exit(EXIT_FAILURE);
+        }
 
         FairMQMessagePtr msg(fTransportFactory->CreateMessage());
         msg->SetDeviceId(fId);
@@ -453,9 +461,9 @@ void FairMQDevice::RunWrapper()
     std::thread rateLogger(&FairMQDevice::LogSocketRates, this);
 
     FairMQChannel::fInterrupted = false;
-    for (auto& s : fDeviceCmdSockets)
+    for (auto& kv : fDeviceCmdSockets)
     {
-        s->Resume();
+        kv.second->Resume();
     }
 
     try
@@ -769,8 +777,16 @@ shared_ptr<FairMQTransportFactory> FairMQDevice::AddTransport(const string& tran
         pair<string, shared_ptr<FairMQTransportFactory>> trPair(transport.c_str(), tr);
         fTransports.insert(trPair);
 
-        fDeviceCmdSockets.push_back(tr->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
-        fDeviceCmdSockets.back()->Bind("inproc://commands");
+        auto p = fDeviceCmdSockets.emplace(transport.c_str(), tr->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
+        if (p.second)
+        {
+            p.first->second->Bind("inproc://commands");
+        }
+        else
+        {
+            LOG(ERROR) << "bla";
+            exit(EXIT_FAILURE);
+        }
 
         FairMQMessagePtr msg(tr->CreateMessage());
         msg->SetDeviceId(fId);
@@ -790,37 +806,6 @@ void FairMQDevice::SetTransport(const string& transport)
     {
         LOG(DEBUG) << "Requesting '" << transport << "' as default transport for the device";
         fTransportFactory = AddTransport(transport);
-//         if (transport == "zeromq")
-//         {
-//             fTransportFactory = make_shared<FairMQTransportFactoryZMQ>();
-//         }
-//         else if (transport == "shmem")
-//         {
-//             fTransportFactory = make_shared<FairMQTransportFactorySHM>();
-//         }
-// #ifdef NANOMSG_FOUND
-//         else if (transport == "nanomsg")
-//         {
-//             fTransportFactory = make_shared<FairMQTransportFactoryNN>();
-//         }
-// #endif
-//         else
-//         {
-//             LOG(ERROR) << "Unavailable transport requested: "
-//                        << "\"" << transport << "\""
-//                        << ". Available are: "
-//                        << "\"zeromq\""
-//                        << "\"shmem\""
-// #ifdef NANOMSG_FOUND
-//                        << ", \"nanomsg\""
-// #endif
-//                        << ". Exiting.";
-//             exit(EXIT_FAILURE);
-//         }
-
-
-//         pair<string, shared_ptr<FairMQTransportFactory>> t(transport.c_str(), fTransportFactory);
-//         fTransports.insert(t);
     }
     else
     {
@@ -1047,11 +1032,11 @@ void FairMQDevice::InteractiveStateLoop()
 void FairMQDevice::Unblock()
 {
     FairMQChannel::fInterrupted = true;
-    for (auto& s : fDeviceCmdSockets)
+    for (auto& kv : fDeviceCmdSockets)
     {
-        s->Interrupt();
-        FairMQMessagePtr cmd(fTransportFactory->CreateMessage());
-        s->Send(cmd.get(), 0);
+        kv.second->Interrupt();
+        FairMQMessagePtr cmd(fTransports.at(kv.first)->CreateMessage());
+        kv.second->Send(cmd.get(), 0);
     }
 }
 
@@ -1100,9 +1085,9 @@ bool FairMQDevice::Terminated()
 void FairMQDevice::Terminate()
 {
     // Termination signal has to be sent only once to any socket.
-    for (auto& s : fDeviceCmdSockets)
+    for (auto& kv : fDeviceCmdSockets)
     {
-        s->Terminate();
+        kv.second->Terminate();
     }
     // if (!fDeviceCmdSockets.empty())
     // {
@@ -1133,7 +1118,7 @@ void FairMQDevice::Shutdown()
 
     for (auto& s : fDeviceCmdSockets)
     {
-        s->Close();
+        s.second->Close();
     }
 
     // if (!fDeviceCmdSockets.empty())
