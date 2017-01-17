@@ -23,11 +23,13 @@ FairMQMessageSHM::FairMQMessageSHM()
     , fOwner(nullptr)
     , fReceiving(false)
     , fQueued(false)
+    , fMetaCreated(false)
 {
     if (zmq_msg_init(&fMessage) != 0)
     {
         LOG(ERROR) << "failed initializing message, reason: " << zmq_strerror(errno);
     }
+    fMetaCreated = true;
 }
 
 void FairMQMessageSHM::StringDeleter(void* /*data*/, void* str)
@@ -40,6 +42,7 @@ FairMQMessageSHM::FairMQMessageSHM(const size_t size)
     , fOwner(nullptr)
     , fReceiving(false)
     , fQueued(false)
+    , fMetaCreated(false)
 {
     InitializeChunk(size);
 }
@@ -49,6 +52,7 @@ FairMQMessageSHM::FairMQMessageSHM(void* data, const size_t size, fairmq_free_fn
     , fOwner(nullptr)
     , fReceiving(false)
     , fQueued(false)
+    , fMetaCreated(false)
 {
     if (InitializeChunk(size))
     {
@@ -69,16 +73,13 @@ bool FairMQMessageSHM::InitializeChunk(const size_t size)
     string chunkID = fDeviceID + "c" + to_string(fMessageID);
     string* ownerID = new string(fDeviceID + "o" + to_string(fMessageID));
 
-    bool success = false;
-
-    while (!success)
+    while (!fOwner)
     {
         try
         {
             fOwner = Manager::Instance().Segment()->construct<ShPtrOwner>(ownerID->c_str())(
                 make_managed_shared_ptr(Manager::Instance().Segment()->construct<Chunk>(chunkID.c_str())(size),
                                         *(Manager::Instance().Segment())));
-            success = true;
         }
         catch (bipc::bad_alloc& ba)
         {
@@ -86,7 +87,7 @@ bool FairMQMessageSHM::InitializeChunk(const size_t size)
             this_thread::sleep_for(chrono::milliseconds(50));
             if (fInterrupted)
             {
-                break;
+                return false;
             }
             else
             {
@@ -95,17 +96,15 @@ bool FairMQMessageSHM::InitializeChunk(const size_t size)
         }
     }
 
-    if (success)
+    if (zmq_msg_init_data(&fMessage, const_cast<char*>(ownerID->c_str()), ownerID->length(), StringDeleter, ownerID) != 0)
     {
-        if (zmq_msg_init_data(&fMessage, const_cast<char*>(ownerID->c_str()), ownerID->length(), StringDeleter, ownerID) != 0)
-        {
-            LOG(ERROR) << "failed initializing meta message, reason: " << zmq_strerror(errno);
-        }
-
-        ++fMessageID;
+        LOG(ERROR) << "failed initializing meta message, reason: " << zmq_strerror(errno);
     }
+    fMetaCreated = true;
 
-    return success;
+    ++fMessageID;
+
+    return true;
 }
 
 void FairMQMessageSHM::Rebuild()
@@ -119,6 +118,7 @@ void FairMQMessageSHM::Rebuild()
     {
         LOG(ERROR) << "failed initializing message, reason: " << zmq_strerror(errno);
     }
+    fMetaCreated = true;
 }
 
 void FairMQMessageSHM::Rebuild(const size_t size)
@@ -288,9 +288,12 @@ void FairMQMessageSHM::CloseMessage()
         }
     }
 
-    if (zmq_msg_close(&fMessage) != 0)
+    if (fMetaCreated)
     {
-        LOG(ERROR) << "failed closing message, reason: " << zmq_strerror(errno);
+        if (zmq_msg_close(&fMessage) != 0)
+        {
+            LOG(ERROR) << "failed closing message, reason: " << zmq_strerror(errno);
+        }
     }
 }
 

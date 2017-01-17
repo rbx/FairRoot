@@ -594,7 +594,7 @@ void FairMQChannel::ResetChannel()
     // TODO: implement channel resetting
 }
 
-int FairMQChannel::Send(const unique_ptr<FairMQMessage>& msg, int sndTimeoutInMs) const
+int FairMQChannel::Send(unique_ptr<FairMQMessage>& msg, int sndTimeoutInMs) const
 {
     fPoller->Poll(sndTimeoutInMs);
 
@@ -609,13 +609,13 @@ int FairMQChannel::Send(const unique_ptr<FairMQMessage>& msg, int sndTimeoutInMs
 
     if (fPoller->CheckOutput(1))
     {
-        return fSocket->Send(msg.get(), 0);
+        return fSocket->Send(msg);
     }
 
     return -2;
 }
 
-int FairMQChannel::Receive(const unique_ptr<FairMQMessage>& msg, int rcvTimeoutInMs) const
+int FairMQChannel::Receive(unique_ptr<FairMQMessage>& msg, int rcvTimeoutInMs) const
 {
     fPoller->Poll(rcvTimeoutInMs);
 
@@ -630,13 +630,13 @@ int FairMQChannel::Receive(const unique_ptr<FairMQMessage>& msg, int rcvTimeoutI
 
     if (fPoller->CheckInput(1))
     {
-        return fSocket->Receive(msg.get(), 0);
+        return fSocket->Receive(msg);
     }
 
     return -2;
 }
 
-int64_t FairMQChannel::Send(const vector<unique_ptr<FairMQMessage>>& msgVec, int sndTimeoutInMs) const
+int64_t FairMQChannel::Send(vector<unique_ptr<FairMQMessage>>& msgVec, int sndTimeoutInMs) const
 {
     fPoller->Poll(sndTimeoutInMs);
 
@@ -678,149 +678,10 @@ int64_t FairMQChannel::Receive(vector<unique_ptr<FairMQMessage>>& msgVec, int rc
     return -2;
 }
 
-// int FairMQChannel::Send(FairMQMessage* msg, const string& flag, int sndTimeoutInMs) const
-// {
-//     if (flag == "")
-//     {
-//         fPoller->Poll(sndTimeoutInMs);
-
-//         if (fPoller->CheckInput(0))
-//         {
-//             HandleUnblock();
-//             if (fInterrupted)
-//             {
-//                 return -2;
-
-//             }
-//         }
-
-//         if (fPoller->CheckOutput(1))
-//         {
-//             return fSocket->Send(msg, flag);
-//         }
-
-//         return -2;
-//     }
-//     else
-//     {
-//         return fSocket->Send(msg, flag);
-//     }
-// }
-
-// int FairMQChannel::Send(FairMQMessage* msg, const int flags, int sndTimeoutInMs) const
-// {
-//     if (flags == 0)
-//     {
-//         fPoller->Poll(sndTimeoutInMs);
-
-//         if (fPoller->CheckInput(0))
-//         {
-//             HandleUnblock();
-//             if (fInterrupted)
-//             {
-//                 return -2;
-
-//             }
-//         }
-
-//         if (fPoller->CheckOutput(1))
-//         {
-//             return fSocket->Send(msg, flags);
-//         }
-
-//         return -2;
-//     }
-//     else
-//     {
-//         return fSocket->Send(msg, flags);
-//     }
-// }
-
-// int FairMQChannel::Receive(FairMQMessage* msg, const string& flag, int rcvTimeoutInMs) const
-// {
-//     if (flag == "")
-//     {
-//         fPoller->Poll(rcvTimeoutInMs);
-
-//         if (fPoller->CheckInput(0))
-//         {
-//             HandleUnblock();
-//             if (fInterrupted)
-//             {
-//                 return -2;
-
-//             }
-//         }
-
-//         if (fPoller->CheckInput(1))
-//         {
-//             return fSocket->Receive(msg, flag);
-//         }
-
-//         return -2;
-//     }
-//     else
-//     {
-//         return fSocket->Receive(msg, flag);
-//     }
-// }
-
-// int FairMQChannel::Receive(FairMQMessage* msg, const int flags, int rcvTimeoutInMs) const
-// {
-//     if (flags == 0)
-//     {
-//         fPoller->Poll(rcvTimeoutInMs);
-
-//         if (fPoller->CheckInput(0))
-//         {
-//             HandleUnblock();
-//             if (fInterrupted)
-//             {
-//                 return -2;
-
-//             }
-//         }
-
-//         if (fPoller->CheckInput(1))
-//         {
-//             return fSocket->Receive(msg, flags);
-//         }
-
-//         return -2;
-//     }
-//     else
-//     {
-//         return fSocket->Receive(msg, flags);
-//     }
-// }
-
-// bool FairMQChannel::ExpectsAnotherPart() const
-// {
-//     int64_t more = 0;
-//     size_t more_size = sizeof more;
-
-//     if (fSocket)
-//     {
-//         fSocket->GetOption("rcv-more", &more, &more_size);
-//         if (more)
-//         {
-//             return true;
-//         }
-//         else
-//         {
-//             return false;
-//         }
-//     }
-//     else
-//     {
-//         return false;
-//     }
-// }
-
 inline bool FairMQChannel::HandleUnblock() const
 {
     FairMQMessagePtr cmd(fTransportFactory->CreateMessage());
-    if (fChannelCmdSocket->Receive(cmd.get(), 0) >= 0)
+    if (fChannelCmdSocket->Receive(cmd) >= 0)
     {
         // LOG(DEBUG) << "unblocked";
     }

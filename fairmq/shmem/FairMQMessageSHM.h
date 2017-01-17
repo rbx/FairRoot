@@ -57,6 +57,7 @@ class FairMQMessageSHM : public FairMQMessage
     static std::string fDeviceID;
     bool fReceiving;
     bool fQueued;
+    bool fMetaCreated;
     static std::atomic<bool> fInterrupted;
 };
 

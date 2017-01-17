@@ -276,7 +276,6 @@ bool FairMQDevice::AttachChannel(FairMQChannel& ch)
         if (!ch.fSocket)
         {
             ch.fSocket = ch.fTransportFactory->CreateSocket(ch.fType, ch.fName, fNumIoThreads, fId);
-            // ch.fSocket = fTransportFactory->CreateSocket(ch.fType, ch.fName, fNumIoThreads, fId);
         }
 
         // set high water marks
@@ -454,6 +453,34 @@ void FairMQDevice::OnData(const string& channelName, InputMultipartCallback call
     fMultipartInputs.insert(make_pair(channelName, callback));
 }
 
+bool FairMQDevice::HandleMsgInput(const string& chName, const InputMsgCallback& callback, int i) const
+{
+    unique_ptr<FairMQMessage> input(fChannels.at(chName).at(i).fTransportFactory->CreateMessage());
+
+    if (Receive(input, chName, i) >= 0)
+    {
+        return callback(input, 0);
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool FairMQDevice::HandleMultipartInput(const string& chName, const InputMultipartCallback& callback, int i) const
+{
+    FairMQParts input;
+
+    if (Receive(input, chName, i) >= 0)
+    {
+        return callback(input, 0);
+    }
+    else
+    {
+        return false;
+    }
+}
+
 void FairMQDevice::RunWrapper()
 {
     LOG(INFO) << "DEVICE: Running...";
@@ -472,7 +499,7 @@ void FairMQDevice::RunWrapper()
 
         if (fDataCallbacks)
         {
-            bool exitingRunningCallback = false;
+            bool proceed = true;
 
             vector<string> inputChannelKeys;
             for (const auto& i: fMsgInputs)
@@ -484,67 +511,68 @@ void FairMQDevice::RunWrapper()
                 inputChannelKeys.push_back(i.first);
             }
 
-            FairMQPollerPtr poller(fTransportFactory->CreatePoller(fChannels, inputChannelKeys));
-
-            while (CheckCurrentState(RUNNING) && !exitingRunningCallback)
+            if (inputChannelKeys.size() == 1 && fChannels.at(inputChannelKeys.at(0)).size() == 1)
             {
-                poller->Poll(200);
-
-                for (const auto& mi : fMsgInputs)
+                string chanKey = inputChannelKeys.at(0);
+                if (fMsgInputs.size() > 0)
                 {
-                    for (unsigned int i = 0; i < fChannels.at(mi.first).size(); ++i)
+                    while (CheckCurrentState(RUNNING) && proceed)
                     {
-                        if (poller->CheckInput(mi.first, i))
-                        {
-                            unique_ptr<FairMQMessage> msg(NewMessage());
-
-                            if (Receive(msg, mi.first, i) >= 0)
-                            {
-                                if (mi.second(msg, i) == false)
-                                {
-                                    exitingRunningCallback = true;
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                exitingRunningCallback = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (exitingRunningCallback)
-                    {
-                        break;
+                        proceed = HandleMsgInput(chanKey, fMsgInputs.begin()->second, 0);
                     }
                 }
-
-                for (const auto& mi : fMultipartInputs)
+                else if (fMultipartInputs.size() > 0)
                 {
-                    for (unsigned int i = 0; i < fChannels.at(mi.first).size(); ++i)
+                    while (CheckCurrentState(RUNNING) && proceed)
                     {
-                        if (poller->CheckInput(mi.first, i))
-                        {
-                            FairMQParts parts;
+                        proceed = HandleMultipartInput(chanKey, fMultipartInputs.begin()->second, 0);
+                    }
+                }
+            }
+            else
+            {
+                FairMQPollerPtr poller(fTransportFactory->CreatePoller(fChannels, inputChannelKeys));
 
-                            if (Receive(parts, mi.first, i) >= 0)
+                while (CheckCurrentState(RUNNING) && proceed)
+                {
+                    poller->Poll(200);
+
+                    for (const auto& mi : fMsgInputs)
+                    {
+                        for (unsigned int i = 0; i < fChannels.at(mi.first).size(); ++i)
+                        {
+                            if (poller->CheckInput(mi.first, i))
                             {
-                                if (mi.second(parts, i) == false)
+                                proceed = HandleMsgInput(mi.first, mi.second, i);
+                                if (!proceed)
                                 {
-                                    exitingRunningCallback = true;
                                     break;
                                 }
                             }
-                            else
-                            {
-                                exitingRunningCallback = true;
-                                break;
-                            }
+                        }
+                        if (!proceed)
+                        {
+                            break;
                         }
                     }
-                    if (exitingRunningCallback)
+
+                    for (const auto& mi : fMultipartInputs)
                     {
-                        break;
+                        for (unsigned int i = 0; i < fChannels.at(mi.first).size(); ++i)
+                        {
+                            if (poller->CheckInput(mi.first, i))
+                            {
+                                proceed = HandleMultipartInput(mi.first, mi.second, i);
+                                if (!proceed)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        if (!proceed)
+                        {
+                            break;
+                        }
                     }
                 }
             }
@@ -902,7 +930,7 @@ void FairMQDevice::LogSocketRates()
                 intervalCounters.at(i) = 0;
 
                 bytesInNew.at(i) = vi->GetBytesRx();
-                mbPerSecIn.at(i) = (static_cast<double>(bytesInNew.at(i) - bytesIn.at(i)) / (1024. * 1024.)) / static_cast<double>(msSinceLastLog) * 1000.;
+                mbPerSecIn.at(i) = (static_cast<double>(bytesInNew.at(i) - bytesIn.at(i)) / (1000. * 1000.)) / static_cast<double>(msSinceLastLog) * 1000.;
                 bytesIn.at(i) = bytesInNew.at(i);
 
                 msgInNew.at(i) = vi->GetMessagesRx();
@@ -910,7 +938,7 @@ void FairMQDevice::LogSocketRates()
                 msgIn.at(i) = msgInNew.at(i);
 
                 bytesOutNew.at(i) = vi->GetBytesTx();
-                mbPerSecOut.at(i) = (static_cast<double>(bytesOutNew.at(i) - bytesOut.at(i)) / (1024. * 1024.)) / static_cast<double>(msSinceLastLog) * 1000.;
+                mbPerSecOut.at(i) = (static_cast<double>(bytesOutNew.at(i) - bytesOut.at(i)) / (1000. * 1000.)) / static_cast<double>(msSinceLastLog) * 1000.;
                 bytesOut.at(i) = bytesOutNew.at(i);
 
                 msgOutNew.at(i) = vi->GetMessagesTx();
@@ -1036,7 +1064,7 @@ void FairMQDevice::Unblock()
     {
         kv.second->Interrupt();
         FairMQMessagePtr cmd(fTransports.at(kv.first)->CreateMessage());
-        kv.second->Send(cmd.get(), 0);
+        kv.second->Send(cmd);
     }
 }
 
