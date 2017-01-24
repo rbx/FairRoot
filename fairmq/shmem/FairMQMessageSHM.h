@@ -48,17 +48,20 @@ class FairMQMessageSHM : public FairMQMessage
 
     virtual ~FairMQMessageSHM();
 
-    static void StringDeleter(void* data, void* str);
+    // static void StringDeleter(void* data, void* str);
 
   private:
     zmq_msg_t fMessage;
-    FairMQ::shmem::ShPtrOwner* fOwner;
-    static uint64_t fMessageID;
-    static std::string fDeviceID;
-    bool fReceiving;
+    // FairMQ::shmem::ShPtrOwner* fOwner;
+    // static uint64_t fMessageID;
+    // static std::string fDeviceID;
+    // bool fReceiving;
     bool fQueued;
     bool fMetaCreated;
     static std::atomic<bool> fInterrupted;
+    bipc::managed_shared_memory::handle_t fHandle;
+    size_t fChunkSize;
+    void* fLocalPtr;
 };
 
 #endif /* FAIRMQMESSAGESHM_H_ */
