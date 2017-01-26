@@ -861,7 +861,6 @@ void FairMQDevice::LogSocketRates()
 
     timestamp_t msSinceLastLog;
 
-    int numFilteredSockets = 0;
     vector<FairMQSocket*> filteredSockets;
     vector<string> filteredChannelNames;
     vector<int> logIntervals;
@@ -881,80 +880,84 @@ void FairMQDevice::LogSocketRates()
                 stringstream ss;
                 ss << mi.first << "[" << vi - (mi.second).begin() << "]";
                 filteredChannelNames.push_back(ss.str());
-                ++numFilteredSockets;
             }
         }
     }
 
-    vector<unsigned long> bytesIn(numFilteredSockets);
-    vector<unsigned long> msgIn(numFilteredSockets);
-    vector<unsigned long> bytesOut(numFilteredSockets);
-    vector<unsigned long> msgOut(numFilteredSockets);
+    unsigned int numFilteredSockets = filteredSockets.size();
 
-    vector<unsigned long> bytesInNew(numFilteredSockets);
-    vector<unsigned long> msgInNew(numFilteredSockets);
-    vector<unsigned long> bytesOutNew(numFilteredSockets);
-    vector<unsigned long> msgOutNew(numFilteredSockets);
-
-    vector<double> mbPerSecIn(numFilteredSockets);
-    vector<double> msgPerSecIn(numFilteredSockets);
-    vector<double> mbPerSecOut(numFilteredSockets);
-    vector<double> msgPerSecOut(numFilteredSockets);
-
-    int i = 0;
-    for (const auto& vi : filteredSockets)
+    if (numFilteredSockets > 0)
     {
-        bytesIn.at(i) = vi->GetBytesRx();
-        bytesOut.at(i) = vi->GetBytesTx();
-        msgIn.at(i) = vi->GetMessagesRx();
-        msgOut.at(i) = vi->GetMessagesTx();
-        ++i;
-    }
+        vector<unsigned long> bytesIn(numFilteredSockets);
+        vector<unsigned long> msgIn(numFilteredSockets);
+        vector<unsigned long> bytesOut(numFilteredSockets);
+        vector<unsigned long> msgOut(numFilteredSockets);
 
-    t0 = get_timestamp();
+        vector<unsigned long> bytesInNew(numFilteredSockets);
+        vector<unsigned long> msgInNew(numFilteredSockets);
+        vector<unsigned long> bytesOutNew(numFilteredSockets);
+        vector<unsigned long> msgOutNew(numFilteredSockets);
 
-    while (CheckCurrentState(RUNNING))
-    {
-        t1 = get_timestamp();
+        vector<double> mbPerSecIn(numFilteredSockets);
+        vector<double> msgPerSecIn(numFilteredSockets);
+        vector<double> mbPerSecOut(numFilteredSockets);
+        vector<double> msgPerSecOut(numFilteredSockets);
 
-        msSinceLastLog = (t1 - t0) / 1000.0L;
-
-        i = 0;
-
+        int i = 0;
         for (const auto& vi : filteredSockets)
         {
-            intervalCounters.at(i)++;
-
-            if (intervalCounters.at(i) == logIntervals.at(i))
-            {
-                intervalCounters.at(i) = 0;
-
-                bytesInNew.at(i) = vi->GetBytesRx();
-                mbPerSecIn.at(i) = (static_cast<double>(bytesInNew.at(i) - bytesIn.at(i)) / (1000. * 1000.)) / static_cast<double>(msSinceLastLog) * 1000.;
-                bytesIn.at(i) = bytesInNew.at(i);
-
-                msgInNew.at(i) = vi->GetMessagesRx();
-                msgPerSecIn.at(i) = static_cast<double>(msgInNew.at(i) - msgIn.at(i)) / static_cast<double>(msSinceLastLog) * 1000.;
-                msgIn.at(i) = msgInNew.at(i);
-
-                bytesOutNew.at(i) = vi->GetBytesTx();
-                mbPerSecOut.at(i) = (static_cast<double>(bytesOutNew.at(i) - bytesOut.at(i)) / (1000. * 1000.)) / static_cast<double>(msSinceLastLog) * 1000.;
-                bytesOut.at(i) = bytesOutNew.at(i);
-
-                msgOutNew.at(i) = vi->GetMessagesTx();
-                msgPerSecOut.at(i) = static_cast<double>(msgOutNew.at(i) - msgOut.at(i)) / static_cast<double>(msSinceLastLog) * 1000.;
-                msgOut.at(i) = msgOutNew.at(i);
-
-                LOG(DEBUG) << filteredChannelNames.at(i) << ": "
-                           << "in: " << msgPerSecIn.at(i) << " msg (" << mbPerSecIn.at(i) << " MB), "
-                           << "out: " << msgPerSecOut.at(i) << " msg (" << mbPerSecOut.at(i) << " MB)";
-            }
-
+            bytesIn.at(i) = vi->GetBytesRx();
+            bytesOut.at(i) = vi->GetBytesTx();
+            msgIn.at(i) = vi->GetMessagesRx();
+            msgOut.at(i) = vi->GetMessagesTx();
             ++i;
         }
 
-        t0 = t1;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        t0 = get_timestamp();
+
+        while (CheckCurrentState(RUNNING))
+        {
+            t1 = get_timestamp();
+
+            msSinceLastLog = (t1 - t0) / 1000.0L;
+
+            i = 0;
+
+            for (const auto& vi : filteredSockets)
+            {
+                intervalCounters.at(i)++;
+
+                if (intervalCounters.at(i) == logIntervals.at(i))
+                {
+                    intervalCounters.at(i) = 0;
+
+                    bytesInNew.at(i) = vi->GetBytesRx();
+                    mbPerSecIn.at(i) = (static_cast<double>(bytesInNew.at(i) - bytesIn.at(i)) / (1000. * 1000.)) / static_cast<double>(msSinceLastLog) * 1000.;
+                    bytesIn.at(i) = bytesInNew.at(i);
+
+                    msgInNew.at(i) = vi->GetMessagesRx();
+                    msgPerSecIn.at(i) = static_cast<double>(msgInNew.at(i) - msgIn.at(i)) / static_cast<double>(msSinceLastLog) * 1000.;
+                    msgIn.at(i) = msgInNew.at(i);
+
+                    bytesOutNew.at(i) = vi->GetBytesTx();
+                    mbPerSecOut.at(i) = (static_cast<double>(bytesOutNew.at(i) - bytesOut.at(i)) / (1000. * 1000.)) / static_cast<double>(msSinceLastLog) * 1000.;
+                    bytesOut.at(i) = bytesOutNew.at(i);
+
+                    msgOutNew.at(i) = vi->GetMessagesTx();
+                    msgPerSecOut.at(i) = static_cast<double>(msgOutNew.at(i) - msgOut.at(i)) / static_cast<double>(msSinceLastLog) * 1000.;
+                    msgOut.at(i) = msgOutNew.at(i);
+
+                    LOG(DEBUG) << filteredChannelNames.at(i) << ": "
+                               << "in: " << msgPerSecIn.at(i) << " msg (" << mbPerSecIn.at(i) << " MB), "
+                               << "out: " << msgPerSecOut.at(i) << " msg (" << mbPerSecOut.at(i) << " MB)";
+                }
+
+                ++i;
+            }
+
+            t0 = t1;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
     }
 
     // LOG(DEBUG) << "FairMQDevice::LogSocketRates() stopping";
