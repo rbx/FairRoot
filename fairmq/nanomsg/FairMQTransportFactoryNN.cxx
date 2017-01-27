@@ -16,7 +16,7 @@
 
 using namespace std;
 
-static string gTransportName = "nanomsg";
+static FairMQ::Transport gTransportType = FairMQ::Transport::NN;
 
 FairMQTransportFactoryNN::FairMQTransportFactoryNN()
 {
@@ -58,7 +58,7 @@ FairMQPollerPtr FairMQTransportFactoryNN::CreatePoller(const FairMQSocket& cmdSo
     return unique_ptr<FairMQPoller>(new FairMQPollerNN(cmdSocket, dataSocket));
 }
 
-std::string FairMQTransportFactoryNN::GetName() const
+FairMQ::Transport FairMQTransportFactoryNN::GetType() const
 {
-    return gTransportName;
+    return gTransportType;
 }

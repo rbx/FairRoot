@@ -13,11 +13,11 @@
  */
 
 #include <set>
+#include <utility> // std::move
 
 #include <boost/algorithm/string.hpp> // join/split
 
 #include "FairMQChannel.h"
-#include "FairMQLogger.h"
 
 using namespace std;
 
@@ -40,6 +40,7 @@ FairMQChannel::FairMQChannel()
     , fIsValid(false)
     , fPoller(nullptr)
     , fChannelCmdSocket(nullptr)
+    , fTransportType(FairMQ::Transport::DEFAULT)
     , fTransportFactory(nullptr)
     , fNoBlockFlag(0)
     , fSndMoreFlag(0)
@@ -61,6 +62,7 @@ FairMQChannel::FairMQChannel(const string& type, const string& method, const str
     , fIsValid(false)
     , fPoller(nullptr)
     , fChannelCmdSocket(nullptr)
+    , fTransportType(FairMQ::Transport::DEFAULT)
     , fTransportFactory(nullptr)
     , fNoBlockFlag(0)
     , fSndMoreFlag(0)
@@ -82,6 +84,7 @@ FairMQChannel::FairMQChannel(const FairMQChannel& chan)
     , fIsValid(false)
     , fPoller(nullptr)
     , fChannelCmdSocket(nullptr)
+    , fTransportType(FairMQ::Transport::DEFAULT)
     , fTransportFactory(nullptr)
     , fNoBlockFlag(chan.fNoBlockFlag)
     , fSndMoreFlag(chan.fSndMoreFlag)
@@ -103,6 +106,7 @@ FairMQChannel& FairMQChannel::operator=(const FairMQChannel& chan)
     fIsValid = false;
     fPoller = nullptr;
     fChannelCmdSocket = nullptr;
+    fTransportType = FairMQ::Transport::DEFAULT;
     fTransportFactory = nullptr;
     fNoBlockFlag = chan.fNoBlockFlag;
     fSndMoreFlag = chan.fSndMoreFlag;
@@ -495,9 +499,9 @@ bool FairMQChannel::ValidateChannel()
         }
 
         // validate channel transport
-        const string channelTransportNames[] = { "default", "zeromq", "nanomsg", "shmem" };
-        const set<string> channelTransports(channelTransportNames, channelTransportNames + sizeof(channelTransportNames) / sizeof(string));
-        if (channelTransports.find(fTransport) == channelTransports.end())
+        // const string channelTransportNames[] = { "default", "zeromq", "nanomsg", "shmem" };
+        // const set<string> channelTransports(channelTransportNames, channelTransportNames + sizeof(channelTransportNames) / sizeof(string));
+        if (FairMQ::TransportTypes.find(fTransport) == FairMQ::TransportTypes.end())
         {
             ss << "INVALID";
             LOG(DEBUG) << ss.str();
@@ -565,6 +569,7 @@ bool FairMQChannel::ValidateChannel()
 void FairMQChannel::InitTransport(shared_ptr<FairMQTransportFactory> factory)
 {
     fTransportFactory = factory;
+    fTransportType = factory->GetType();
 }
 
 bool FairMQChannel::InitCommandInterface(int numIoThreads)
@@ -594,6 +599,18 @@ void FairMQChannel::ResetChannel()
     // TODO: implement channel resetting
 }
 
+int FairMQChannel::Send(unique_ptr<FairMQMessage>& msg) const
+{
+    CheckCompatibility(msg);
+    return fSocket->Send(msg);
+}
+
+int FairMQChannel::Receive(unique_ptr<FairMQMessage>& msg) const
+{
+    CheckCompatibility(msg);
+    return fSocket->Receive(msg);
+}
+
 int FairMQChannel::Send(unique_ptr<FairMQMessage>& msg, int sndTimeoutInMs) const
 {
     fPoller->Poll(sndTimeoutInMs);
@@ -609,7 +626,7 @@ int FairMQChannel::Send(unique_ptr<FairMQMessage>& msg, int sndTimeoutInMs) cons
 
     if (fPoller->CheckOutput(1))
     {
-        return fSocket->Send(msg);
+        return Send(msg);
     }
 
     return -2;
@@ -630,10 +647,34 @@ int FairMQChannel::Receive(unique_ptr<FairMQMessage>& msg, int rcvTimeoutInMs) c
 
     if (fPoller->CheckInput(1))
     {
-        return fSocket->Receive(msg);
+        return Receive(msg);
     }
 
     return -2;
+}
+
+int FairMQChannel::SendAsync(unique_ptr<FairMQMessage>& msg) const
+{
+    CheckCompatibility(msg);
+    return fSocket->Send(msg, fNoBlockFlag);
+}
+
+int FairMQChannel::ReceiveAsync(unique_ptr<FairMQMessage>& msg) const
+{
+    CheckCompatibility(msg);
+    return fSocket->Receive(msg, fNoBlockFlag);
+}
+
+int64_t FairMQChannel::Send(vector<unique_ptr<FairMQMessage>>& msgVec) const
+{
+    CheckCompatibility(msgVec);
+    return fSocket->Send(msgVec);
+}
+
+int64_t FairMQChannel::Receive(vector<unique_ptr<FairMQMessage>>& msgVec) const
+{
+    CheckCompatibility(msgVec);
+    return fSocket->Receive(msgVec);
 }
 
 int64_t FairMQChannel::Send(vector<unique_ptr<FairMQMessage>>& msgVec, int sndTimeoutInMs) const
@@ -651,7 +692,7 @@ int64_t FairMQChannel::Send(vector<unique_ptr<FairMQMessage>>& msgVec, int sndTi
 
     if (fPoller->CheckOutput(1))
     {
-        return fSocket->Send(msgVec);
+        return Send(msgVec);
     }
 
     return -2;
@@ -672,10 +713,27 @@ int64_t FairMQChannel::Receive(vector<unique_ptr<FairMQMessage>>& msgVec, int rc
 
     if (fPoller->CheckInput(1))
     {
-        return fSocket->Receive(msgVec);
+        return Receive(msgVec);
     }
 
     return -2;
+}
+
+int64_t FairMQChannel::SendAsync(vector<unique_ptr<FairMQMessage>>& msgVec) const
+{
+    CheckCompatibility(msgVec);
+    return fSocket->Send(msgVec, fNoBlockFlag);
+}
+
+/// Receives a vector of messages in non-blocking mode.
+///
+/// @param msgVec message vector reference
+/// @return Number of bytes that have been received. If queue is empty, returns -2.
+/// In case of errors, returns -1.
+int64_t FairMQChannel::ReceiveAsync(vector<unique_ptr<FairMQMessage>>& msgVec) const
+{
+    CheckCompatibility(msgVec);
+    return fSocket->Receive(msgVec, fNoBlockFlag);
 }
 
 inline bool FairMQChannel::HandleUnblock() const
@@ -700,4 +758,47 @@ void FairMQChannel::Tokenize(vector<string>& output, const string& input, const 
 FairMQTransportFactory* FairMQChannel::Transport()
 {
     return fTransportFactory.get();
+}
+
+bool FairMQChannel::CheckCompatibility(unique_ptr<FairMQMessage>& msg) const
+{
+    if (fTransportType == msg->GetType())
+    {
+        return true;
+    }
+    else
+    {
+        // LOG(WARN) << "Channel type does not match message type. Copying...";
+        FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage(msg->GetSize()));
+        memcpy(msgCopy->GetData(), msg->GetData(), msg->GetSize());
+        msg = move(msgCopy);
+        return false;
+    }
+}
+
+bool FairMQChannel::CheckCompatibility(vector<unique_ptr<FairMQMessage>>& msgVec) const
+{
+    if (msgVec.size() > 0)
+    {
+        if (fTransportType == msgVec.at(0)->GetType())
+        {
+            return true;
+        }
+        else
+        {
+            // LOG(WARN) << "Channel type does not match message type. Copying...";
+            vector<unique_ptr<FairMQMessage>> tempVec;
+            for (int i = 0; i < msgVec.size(); ++i)
+            {
+                tempVec.push_back(fTransportFactory->CreateMessage(msgVec[i]->GetSize()));
+                memcpy(tempVec[i]->GetData(), msgVec[i]->GetData(), msgVec[i]->GetSize());
+            }
+            msgVec = move(tempVec);
+            return false;
+        }
+    }
+    else
+    {
+        return true;
+    }
 }

@@ -14,6 +14,8 @@
 using namespace std;
 using namespace FairMQ::shmem;
 
+static FairMQ::Transport gTransportType = FairMQ::Transport::SHM;
+
 // uint64_t FairMQMessageSHM::fMessageID = 0;
 // string FairMQMessageSHM::fDeviceID = string();
 atomic<bool> FairMQMessageSHM::fInterrupted(false);
@@ -192,7 +194,7 @@ void* FairMQMessageSHM::GetData()
     }
     else
     {
-        LOG(ERROR) << "Trying to get data of an empty shared memory message";
+        // LOG(ERROR) << "Trying to get data of an empty shared memory message";
         return nullptr;
     }
 
@@ -228,6 +230,11 @@ void FairMQMessageSHM::SetMessage(void*, const size_t)
 void FairMQMessageSHM::SetDeviceId(const string& /*deviceId*/)
 {
     // fDeviceID = deviceId;
+}
+
+FairMQ::Transport FairMQMessageSHM::GetType() const
+{
+    return gTransportType;
 }
 
 void FairMQMessageSHM::Copy(const unique_ptr<FairMQMessage>& msg)

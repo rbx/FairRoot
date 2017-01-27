@@ -18,7 +18,7 @@
 
 using namespace std;
 
-static string gTransportName = "zeromq";
+static FairMQ::Transport gTransportType = FairMQ::Transport::ZMQ;
 
 FairMQTransportFactoryZMQ::FairMQTransportFactoryZMQ()
 {
@@ -62,7 +62,7 @@ FairMQPollerPtr FairMQTransportFactoryZMQ::CreatePoller(const FairMQSocket& cmdS
     return unique_ptr<FairMQPoller>(new FairMQPollerZMQ(cmdSocket, dataSocket));
 }
 
-std::string FairMQTransportFactoryZMQ::GetName() const
+FairMQ::Transport FairMQTransportFactoryZMQ::GetType() const
 {
-    return gTransportName;
+    return gTransportType;
 }

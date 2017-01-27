@@ -12,7 +12,7 @@
 
 using namespace std;
 
-static string gTransportName = "shmem";
+static FairMQ::Transport gTransportType = FairMQ::Transport::SHM;
 
 FairMQTransportFactorySHM::FairMQTransportFactorySHM()
 {
@@ -57,7 +57,8 @@ FairMQPollerPtr FairMQTransportFactorySHM::CreatePoller(const FairMQSocket& cmdS
     return unique_ptr<FairMQPoller>(new FairMQPollerSHM(cmdSocket, dataSocket));
 }
 
-std::string FairMQTransportFactorySHM::GetName() const
+FairMQ::Transport FairMQTransportFactorySHM::GetType() const
 {
-    return gTransportName;
+    return gTransportType;
 }
+

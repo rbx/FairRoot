@@ -30,6 +30,7 @@
 #include "FairMQConfigurable.h"
 #include "FairMQStateMachine.h"
 #include "FairMQTransportFactory.h"
+#include "FairMQTransports.h"
 
 #include "FairMQSocket.h"
 #include "FairMQChannel.h"
@@ -273,6 +274,12 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
         return fTransportFactory->CreateMessage(const_cast<char*>(msgStr->c_str()), msgStr->length(), FairMQSimpleMsgCleanup<std::string>, msgStr);
     }
 
+    // template<typename... Args>
+    // inline FairMQMessagePtr NewMessageFor(const std::string& channel, int index, Args&&... args) const
+    // {
+    //     return fChannels.at(channel).at(index).fTransportFactory->CreateMessage(std::forward<Args>(args)...);
+    // }
+
     /// Waits for the first initialization run to finish
     void WaitForInitialValidation();
 
@@ -373,8 +380,8 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
     int fLogIntervalInMs; ///< Interval for logging the socket transfer rates
 
     std::shared_ptr<FairMQTransportFactory> fTransportFactory; ///< Transport factory
-    std::unordered_map<std::string, std::shared_ptr<FairMQTransportFactory>> fTransports; ///< Container for transports
-    std::unordered_map<std::string, FairMQSocketPtr> fDeviceCmdSockets; ///< Sockets used for the internal unblocking mechanism
+    std::unordered_map<FairMQ::Transport, std::shared_ptr<FairMQTransportFactory>> fTransports; ///< Container for transports
+    std::unordered_map<FairMQ::Transport, FairMQSocketPtr> fDeviceCmdSockets; ///< Sockets used for the internal unblocking mechanism
 
     /// Additional user initialization (can be overloaded in child classes). Prefer to use InitTask().
     virtual void Init();

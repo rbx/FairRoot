@@ -152,7 +152,7 @@ void FairMQDevice::InitWrapper()
 
     if (fDeviceCmdSockets.empty())
     {
-        auto p = fDeviceCmdSockets.emplace(fTransportFactory->GetName().c_str(), fTransportFactory->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
+        auto p = fDeviceCmdSockets.emplace(fTransportFactory->GetType(), fTransportFactory->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
         if (p.second)
         {
             p.first->second->Bind("inproc://commands");
@@ -754,7 +754,7 @@ void FairMQDevice::SetTransport(FairMQTransportFactory* factory)
     if (fTransports.empty())
     {
         fTransportFactory = shared_ptr<FairMQTransportFactory>(factory);
-        pair<string, shared_ptr<FairMQTransportFactory>> t(fTransportFactory->GetName().c_str(), fTransportFactory);
+        pair<FairMQ::Transport, shared_ptr<FairMQTransportFactory>> t(fTransportFactory->GetType(), fTransportFactory);
         fTransports.insert(t);
     }
     else
@@ -766,7 +766,7 @@ void FairMQDevice::SetTransport(FairMQTransportFactory* factory)
 
 shared_ptr<FairMQTransportFactory> FairMQDevice::AddTransport(const string& transport)
 {
-    unordered_map<string, shared_ptr<FairMQTransportFactory>>::const_iterator i = fTransports.find(transport);
+    unordered_map<FairMQ::Transport, shared_ptr<FairMQTransportFactory>>::const_iterator i = fTransports.find(FairMQ::TransportTypes.at(transport));
 
     if (i == fTransports.end())
     {
@@ -802,10 +802,10 @@ shared_ptr<FairMQTransportFactory> FairMQDevice::AddTransport(const string& tran
 
         LOG(DEBUG) << "Adding '" << transport << "' transport to the device.";
 
-        pair<string, shared_ptr<FairMQTransportFactory>> trPair(transport.c_str(), tr);
+        pair<FairMQ::Transport, shared_ptr<FairMQTransportFactory>> trPair(FairMQ::TransportTypes.at(transport), tr);
         fTransports.insert(trPair);
 
-        auto p = fDeviceCmdSockets.emplace(transport.c_str(), tr->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
+        auto p = fDeviceCmdSockets.emplace(tr->GetType(), tr->CreateSocket("pub", "device-commands", fNumIoThreads, fId));
         if (p.second)
         {
             p.first->second->Bind("inproc://commands");
