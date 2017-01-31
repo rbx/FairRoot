@@ -11,6 +11,7 @@
 #include <string>
 #include <unordered_map>
 
+
 namespace FairMQ
 {
 
@@ -31,4 +32,17 @@ static std::unordered_map<std::string, Transport> TransportTypes {
 
 }
 
+namespace std
+{
+
+template <>
+struct hash<FairMQ::Transport>
+{
+    size_t operator()(const FairMQ::Transport& v) const
+    {
+        return hash<int>()(static_cast<int>(v));
+    }
+};
+
+}
 #endif /* FAIRMQTRANSPORTS_H_ */
