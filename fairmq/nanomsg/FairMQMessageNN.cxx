@@ -81,6 +81,12 @@ FairMQMessageNN::FairMQMessageNN(void* data, const size_t size, fairmq_free_fn* 
     }
 }
 
+FairMQMessageNN::FairMQMessageNN(FairMQRegionPtr& region, void* data, const size_t size)
+    : fMessage()
+{
+    LOG(ERROR) << "NN with region not implemented yet.";
+}
+
 void FairMQMessageNN::Rebuild()
 {
     Clear();

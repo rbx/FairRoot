@@ -50,6 +50,12 @@ FairMQMessageZMQ::FairMQMessageZMQ(void* data, const size_t size, fairmq_free_fn
     }
 }
 
+FairMQMessageZMQ::FairMQMessageZMQ(FairMQRegionPtr& region, void* data, const size_t size)
+    : fMessage()
+{
+    LOG(ERROR) << "ZMQ with region not implemented yet.";
+}
+
 void FairMQMessageZMQ::Rebuild()
 {
     CloseMessage();

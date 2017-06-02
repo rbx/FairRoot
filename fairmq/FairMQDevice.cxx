@@ -1261,8 +1261,6 @@ const FairMQChannel& FairMQDevice::GetChannel(const std::string& channelName, co
 
 void FairMQDevice::Exit()
 {
-    LOG(DEBUG) << "All transports are shut down.";
-
     if (!fExternalConfig && fConfig)
     {
         delete fConfig;
@@ -1271,5 +1269,5 @@ void FairMQDevice::Exit()
 
 FairMQDevice::~FairMQDevice()
 {
-    LOG(DEBUG) << "Device destroyed";
+    LOG(DEBUG) << "Destructing device " << fId;
 }

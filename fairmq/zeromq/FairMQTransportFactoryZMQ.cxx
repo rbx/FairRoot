@@ -64,6 +64,11 @@ FairMQMessagePtr FairMQTransportFactoryZMQ::CreateMessage(void* data, const size
     return unique_ptr<FairMQMessage>(new FairMQMessageZMQ(data, size, ffn, hint));
 }
 
+FairMQMessagePtr FairMQTransportFactoryZMQ::CreateMessage(FairMQRegionPtr& region, void* data, const size_t size) const
+{
+    return unique_ptr<FairMQMessage>(new FairMQMessageZMQ(region, data, size));
+}
+
 FairMQSocketPtr FairMQTransportFactoryZMQ::CreateSocket(const string& type, const string& name) const
 {
     assert(fContext);
@@ -90,6 +95,11 @@ FairMQPollerPtr FairMQTransportFactoryZMQ::CreatePoller(const FairMQSocket& cmdS
     return unique_ptr<FairMQPoller>(new FairMQPollerZMQ(cmdSocket, dataSocket));
 }
 
+FairMQRegionPtr FairMQTransportFactoryZMQ::CreateRegion(const size_t size) const
+{
+    return unique_ptr<FairMQRegion>(new FairMQRegionZMQ(size));
+}
+
 FairMQ::Transport FairMQTransportFactoryZMQ::GetType() const
 {
     return fTransportType;
@@ -114,6 +124,6 @@ FairMQTransportFactoryZMQ::~FairMQTransportFactoryZMQ()
     }
     else
     {
-        LOG(ERROR) << "shmem: Terminate(): context now available for shutdown";
+        LOG(ERROR) << "Terminate(): context now available for shutdown";
     }
 }
