@@ -151,62 +151,49 @@ class Manager
     bipc::managed_shared_memory fManagementSegment;
 };
 
-// class Chunk
-// {
-//   public:
-//     Chunk()
-//         : fHandle()
-//         , fSize(0)
-//     {
-//     }
+class Chunk
+{
+  public:
+    Chunk()
+        : fHandle()
+        , fSize(0)
+    {
+    }
 
-//     Chunk(const size_t size)
-//         : fHandle()
-//         , fSize(size)
-//     {
-//         void* ptr = Manager::Instance().Segment()->allocate(size);
-//         fHandle = Manager::Instance().Segment()->get_handle_from_address(ptr);
-//     }
+    Chunk(const size_t size)
+        : fHandle()
+        , fSize(size)
+    {
+        void* ptr = Manager::Instance().Segment()->allocate(size);
+        fHandle = Manager::Instance().Segment()->get_handle_from_address(ptr);
+    }
 
-//     ~Chunk()
-//     {
-//         Manager::Instance().Segment()->deallocate(Manager::Instance().Segment()->get_address_from_handle(fHandle));
-//     }
+    ~Chunk()
+    {
+        Manager::Instance().Segment()->deallocate(Manager::Instance().Segment()->get_address_from_handle(fHandle));
+    }
 
-//     bipc::managed_shared_memory::handle_t GetHandle() const
-//     {
-//         return fHandle;
-//     }
+    bipc::managed_shared_memory::handle_t GetHandle() const
+    {
+        return fHandle;
+    }
 
-//     void* GetData() const
-//     {
-//         return Manager::Instance().Segment()->get_address_from_handle(fHandle);
-//     }
+    void* GetData() const
+    {
+        return Manager::Instance().Segment()->get_address_from_handle(fHandle);
+    }
 
-//     size_t GetSize() const
-//     {
-//         return fSize;
-//     }
+    size_t GetSize() const
+    {
+        return fSize;
+    }
 
-//   private:
-//     bipc::managed_shared_memory::handle_t fHandle;
-//     size_t fSize;
-// };
+  private:
+    bipc::managed_shared_memory::handle_t fHandle;
+    size_t fSize;
+};
 
-// typedef bipc::managed_shared_ptr<Chunk, bipc::managed_shared_memory>::type ShPtrType;
-
-// struct ShPtrOwner
-// {
-//     ShPtrOwner(const ShPtrType& other)
-//         : fPtr(other)
-//         {}
-
-//     ShPtrOwner(const ShPtrOwner& other)
-//         : fPtr(other.fPtr)
-//         {}
-
-//     ShPtrType fPtr;
-// };
+typedef bipc::managed_shared_ptr<Chunk, bipc::managed_shared_memory>::type ShmShPtr;
 
 } // namespace shmem
 } // namespace mq

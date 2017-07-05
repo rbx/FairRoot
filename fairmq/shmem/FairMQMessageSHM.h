@@ -56,14 +56,10 @@ class FairMQMessageSHM : public FairMQMessage
 
     virtual ~FairMQMessageSHM();
 
-    // static void StringDeleter(void* data, void* str);
-
   private:
     zmq_msg_t fMessage;
-    // FairMQ::shmem::ShPtrOwner* fOwner;
-    // static uint64_t fMessageID;
+    fair::mq::shmem::ShmShPtr* fShPtr;
     // static std::string fDeviceID;
-    // bool fReceiving;
     bool fQueued;
     bool fMetaCreated;
     static std::atomic<bool> fInterrupted;
