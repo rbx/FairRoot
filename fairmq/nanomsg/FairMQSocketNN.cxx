@@ -387,12 +387,22 @@ void FairMQSocketNN::Resume()
 
 void* FairMQSocketNN::GetSocket() const
 {
-    return NULL; // dummy method to comply with the interface. functionality not possible in zeromq.
+    // no socket object in nanomsg, file descriptor is used instead
+    return nullptr;
 }
 
 int FairMQSocketNN::GetSocket(int /*nothing*/) const
 {
     return fSocket;
+}
+
+int FairMQSocketNN::GetFileDescriptor() const
+{
+    int fd = 0;
+    auto size = sizeof(int);
+    nn_getsockopt(fSocket, NN_SOL_SOCKET, NN_RCVFD, &fd, &size);
+
+    return fd;
 }
 
 void FairMQSocketNN::SetOption(const string& option, const void* value, size_t valueSize)

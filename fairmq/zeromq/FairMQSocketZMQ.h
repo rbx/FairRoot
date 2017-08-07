@@ -26,6 +26,7 @@ class FairMQSocketZMQ : public FairMQSocket
 {
   public:
     FairMQSocketZMQ(const std::string& type, const std::string& name, const std::string& id = "", void* context = nullptr);
+
     FairMQSocketZMQ(const FairMQSocketZMQ&) = delete;
     FairMQSocketZMQ operator=(const FairMQSocketZMQ&) = delete;
 
@@ -42,6 +43,8 @@ class FairMQSocketZMQ : public FairMQSocket
 
     virtual void* GetSocket() const;
     virtual int GetSocket(int nothing) const;
+    virtual int GetFileDescriptor() const;
+
     virtual void Close();
 
     virtual void Interrupt();

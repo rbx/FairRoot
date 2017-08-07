@@ -50,3 +50,6 @@ html/
 
 #editor tmp files
 .*.swp
+
+# Visual Studio Code config
+.vscode/

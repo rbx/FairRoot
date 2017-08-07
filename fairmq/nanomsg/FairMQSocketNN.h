@@ -41,6 +41,8 @@ class FairMQSocketNN : public FairMQSocket
 
     virtual void* GetSocket() const;
     virtual int GetSocket(int nothing) const;
+    virtual int GetFileDescriptor() const;
+
     virtual void Close();
 
     virtual void Interrupt();

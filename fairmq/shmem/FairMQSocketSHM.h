@@ -20,6 +20,7 @@ class FairMQSocketSHM : public FairMQSocket
 {
   public:
     FairMQSocketSHM(const std::string& type, const std::string& name, const std::string& id = "", void* context = nullptr);
+
     FairMQSocketSHM(const FairMQSocketSHM&) = delete;
     FairMQSocketSHM operator=(const FairMQSocketSHM&) = delete;
 
@@ -36,6 +37,8 @@ class FairMQSocketSHM : public FairMQSocket
 
     virtual void* GetSocket() const;
     virtual int GetSocket(int nothing) const;
+    virtual int GetFileDescriptor() const;
+
     virtual void Close();
 
     virtual void Interrupt();

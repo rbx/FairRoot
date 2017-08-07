@@ -62,6 +62,7 @@ set(FAIRMQ_HEADER_FILES
     FairMQMessage.h
     FairMQParts.h
     FairMQPoller.h
+    FairMQPollerEx.h
     FairMQRegion.h
     FairMQSocket.h
     FairMQStateMachine.h
@@ -129,6 +130,7 @@ set(FAIRMQ_SOURCE_FILES
     FairMQLogger.cxx
     FairMQMessage.cxx
     FairMQPoller.cxx
+    FairMQPollerEx.cxx
     FairMQSocket.cxx
     FairMQStateMachine.cxx
     FairMQTransportFactory.cxx

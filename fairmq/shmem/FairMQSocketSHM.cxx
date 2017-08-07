@@ -412,10 +412,19 @@ void* FairMQSocketSHM::GetSocket() const
     return fSocket;
 }
 
-int FairMQSocketSHM::GetSocket(int) const
+int FairMQSocketSHM::GetSocket(int /*nothing*/) const
 {
-    // dummy method to comply with the interface. functionality not possible in zeromq.
+    // dummy method to comply with the interface. functionality not possible in shmem.
     return -1;
+}
+
+int FairMQSocketSHM::GetFileDescriptor() const
+{
+    int fd = 0;
+    auto size = sizeof(int);
+    zmq_getsockopt(fSocket, ZMQ_FD, &fd, &size);
+
+    return fd;
 }
 
 void FairMQSocketSHM::SetOption(const string& option, const void* value, size_t valueSize)

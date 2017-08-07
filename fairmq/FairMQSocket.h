@@ -48,6 +48,8 @@ class FairMQSocket
 
     virtual void* GetSocket() const = 0;
     virtual int GetSocket(int nothing) const = 0;
+    virtual int GetFileDescriptor() const = 0;
+
     virtual void Close() = 0;
 
     virtual void Interrupt() = 0;
