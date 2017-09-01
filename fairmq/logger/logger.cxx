@@ -15,10 +15,10 @@
 
 #if BOOST_VERSION < 105600
 #include "fairroot_null_deleter.h"
-typedef fairroot::null_deleter empty_deleter_t;
+using empty_deleter_t = fairroot::null_deleter;
 #else
 #include <boost/core/null_deleter.hpp>
-typedef boost::null_deleter empty_deleter_t;
+using empty_deleter_t = boost::null_deleter;
 #endif
 
 #include <boost/make_shared.hpp>

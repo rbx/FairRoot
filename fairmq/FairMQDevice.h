@@ -357,7 +357,7 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
     /// @param rhs Left hand side value for comparison
     static bool SortSocketsByAddress(const FairMQChannel &lhs, const FairMQChannel &rhs);
 
-    template<class T>
+    template<typename T>
     void OnData(const std::string& channelName, bool (T::* memberFunction)(FairMQMessagePtr& msg, int index))
     {
         fDataCallbacks = true;
@@ -384,7 +384,7 @@ class FairMQDevice : public FairMQStateMachine, public FairMQConfigurable
     }
 
 
-    template<class T>
+    template<typename T>
     void OnData(const std::string& channelName, bool (T::* memberFunction)(FairMQParts& parts, int index))
     {
         fDataCallbacks = true;
