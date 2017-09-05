@@ -79,7 +79,7 @@ void reinit_logger(bool color, const std::string& filename, custom_severity_leve
 void DefaultConsoleInit(bool color/* = true*/)
 {
     // add a text sink
-    typedef sinks::synchronous_sink<sinks::text_ostream_backend> text_sink;
+    using text_sink = sinks::synchronous_sink<sinks::text_ostream_backend>;
 
     RemoveRegisteredSinks();
 

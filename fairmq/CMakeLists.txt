@@ -130,7 +130,7 @@ set(FAIRMQ_SOURCE_FILES
     FairMQMessage.cxx
     FairMQPoller.cxx
     FairMQSocket.cxx
-    FairMQStateMachine.cxx
+    # FairMQStateMachine.cxx
     FairMQTransportFactory.cxx
     devices/FairMQBenchmarkSampler.cxx
     devices/FairMQMerger.cxx

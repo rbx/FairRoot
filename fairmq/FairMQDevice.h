@@ -35,10 +35,10 @@
 
 #include <fairmq/Tools.h>
 
-typedef std::unordered_map<std::string, std::vector<FairMQChannel>> FairMQChannelMap;
+using FairMQChannelMap = std::unordered_map<std::string, std::vector<FairMQChannel>>;
 
-typedef std::function<bool(FairMQMessagePtr&, int)> InputMsgCallback;
-typedef std::function<bool(FairMQParts&, int)> InputMultipartCallback;
+using InputMsgCallback = std::function<bool(FairMQMessagePtr&, int)>;
+using InputMultipartCallback = std::function<bool(FairMQParts&, int)>;
 
 class FairMQProgOptions;
 
