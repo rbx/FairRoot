@@ -62,10 +62,9 @@ class FairMQMessageSHM : public FairMQMessage
     static std::atomic<bool> fInterrupted;
     static FairMQ::Transport fTransportType;
     uint64_t fRegionId;
-    bipc::managed_shared_memory::handle_t fHandle;
+    boost::interprocess::managed_shared_memory::handle_t fHandle;
     size_t fSize;
     void* fLocalPtr;
-    boost::interprocess::mapped_region* fRemoteRegion; // cache region ptr
 };
 
 #endif /* FAIRMQMESSAGESHM_H_ */

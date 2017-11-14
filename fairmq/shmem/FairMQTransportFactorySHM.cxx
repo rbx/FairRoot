@@ -27,7 +27,6 @@
 
 using namespace std;
 using namespace fair::mq::shmem;
-namespace bipc = boost::interprocess;
 namespace bfs = boost::filesystem;
 namespace bpt = boost::posix_time;
 
@@ -53,7 +52,7 @@ FairMQTransportFactorySHM::FairMQTransportFactorySHM(const string& id, const Fai
         LOG(ERROR) << "failed creating context, reason: " << zmq_strerror(errno);
         exit(EXIT_FAILURE);
     }
-    
+
     int numIoThreads = 1;
     size_t segmentSize = 2000000000;
     string segmentName = "fairmq_shmem_main";

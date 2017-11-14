@@ -1,8 +1,8 @@
 /********************************************************************************
  *    Copyright (C) 2014 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH    *
  *                                                                              *
- *              This software is distributed under the terms of the             * 
- *         GNU Lesser General Public Licence version 3 (LGPL) version 3,        *  
+ *              This software is distributed under the terms of the             *
+ *         GNU Lesser General Public Licence version 3 (LGPL) version 3,        *
  *                  copied verbatim in the file "LICENSE"                       *
  ********************************************************************************/
 /**
@@ -17,13 +17,12 @@
 
 #include <thread>
 #include <chrono>
+#include <unordered_map>
 
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/smart_ptr/shared_ptr.hpp>
 
 #include "FairMQLogger.h"
-
-namespace bipc = boost::interprocess;
 
 namespace fair
 {
@@ -31,6 +30,53 @@ namespace mq
 {
 namespace shmem
 {
+
+namespace bipc = boost::interprocess;
+
+struct Region
+{
+    Region(std::string regionIdStr, uint64_t size, bool remote)
+        : fRemote(remote)
+        , fRegionIdStr(regionIdStr)
+        , fShmemObject()
+    {
+        if (fRemote)
+        {
+            fShmemObject = bipc::shared_memory_object(bipc::open_only, regionIdStr.c_str(), bipc::read_write);
+        }
+        else
+        {
+            fShmemObject = bipc::shared_memory_object(bipc::create_only, regionIdStr.c_str(), bipc::read_write);
+            fShmemObject.truncate(size);
+        }
+        fRegion = bipc::mapped_region(fShmemObject, bipc::read_write); // TODO: add HUGEPAGES flag here
+    }
+
+    Region() = delete;
+
+    Region(const Region&) = default;
+    Region(Region&&) = default;
+
+    ~Region()
+    {
+        if (!fRemote)
+        {
+            if (bipc::shared_memory_object::remove(fRegionIdStr.c_str()))
+            {
+                LOG(DEBUG) << "shmem: destroyed region " << fRegionIdStr;
+            }
+        }
+        else
+        {
+            LOG(DEBUG) << "shmem: region '" << fRegionIdStr << "' is remote, no cleanup necessary.";
+        }
+    }
+
+    bool fRemote;
+    std::string fRegionIdStr;
+    bipc::shared_memory_object fShmemObject;
+    bipc::mapped_region fRegion;
+};
 
 class Manager
 {
@@ -115,6 +161,50 @@ class Manager
         }
     }
 
+    bipc::mapped_region* CreateRegion(const size_t size, const uint64_t regionId)
+    {
+        auto it = fRegions.find(regionId);
+        if (it != fRegions.end())
+        {
+            LOG(ERROR) << "shmem: Trying to create a region that already exists";
+            return nullptr;
+        }
+        else
+        {
+            std::string regionIdStr = "fairmq_shmem_region_" + std::to_string(regionId);
+            auto r = fRegions.emplace(regionId, Region{regionIdStr, size, false});
+
+            LOG(DEBUG) << "shmem: created region: " << regionIdStr;
+
+            return &(r.first->second.fRegion);
+        }
+    }
+
+    bipc::mapped_region* GetRemoteRegion(const uint64_t regionId)
+    {
+        // remote region could actually be a local one if a message originates from this device (has been sent out and returned)
+        auto it = fRegions.find(regionId);
+        if (it != fRegions.end())
+        {
+            return &(it->second.fRegion);
+        }
+        else
+        {
+            std::string regionIdStr = "fairmq_shmem_region_" + std::to_string(regionId);
+
+            auto r = fRegions.emplace(regionId, Region{regionIdStr, 0, true});
+
+            LOG(DEBUG) << "shmem: located remote region: " << regionIdStr;
+
+            return &(r.first->second.fRegion);
+        }
+    }
+
+    void RemoveRegion(const uint64_t regionId)
+    {
+        fRegions.erase(regionId);
+    }
+
     void Remove()
     {
         if (bipc::shared_memory_object::remove("fairmq_shmem_main"))
@@ -151,64 +241,8 @@ class Manager
 
     bipc::managed_shared_memory* fSegment;
     bipc::managed_shared_memory fManagementSegment;
+    std::unordered_map<uint64_t, Region> fRegions;
 };
-
-// class Chunk
-// {
-//   public:
-//     Chunk()
-//         : fHandle()
-//         , fSize(0)
-//     {
-//     }
-
-//     Chunk(const size_t size)
-//         : fHandle()
-//         , fSize(size)
-//     {
-//         void* ptr = Manager::Instance().Segment()->allocate(size);
-//         fHandle = Manager::Instance().Segment()->get_handle_from_address(ptr);
-//     }
-
-//     ~Chunk()
-//     {
-//         Manager::Instance().Segment()->deallocate(Manager::Instance().Segment()->get_address_from_handle(fHandle));
-//     }
-
-//     bipc::managed_shared_memory::handle_t GetHandle() const
-//     {
-//         return fHandle;
-//     }
-
-//     void* GetData() const
-//     {
-//         return Manager::Instance().Segment()->get_address_from_handle(fHandle);
-//     }
-
-//     size_t GetSize() const
-//     {
-//         return fSize;
-//     }
-
-//   private:
-//     bipc::managed_shared_memory::handle_t fHandle;
-//     size_t fSize;
-// };
-
-// typedef bipc::managed_shared_ptr<Chunk, bipc::managed_shared_memory>::type ShPtrType;
-
-// struct ShPtrOwner
-// {
-//     ShPtrOwner(const ShPtrType& other)
-//         : fPtr(other)
-//         {}
-
-//     ShPtrOwner(const ShPtrOwner& other)
-//         : fPtr(other.fPtr)
-//         {}
-
-//     ShPtrType fPtr;
-// };
 
 } // namespace shmem
 } // namespace mq

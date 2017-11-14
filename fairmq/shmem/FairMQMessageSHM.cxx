@@ -16,8 +16,6 @@
 using namespace std;
 using namespace fair::mq::shmem;
 
-namespace bipc = boost::interprocess;
-
 atomic<bool> FairMQMessageSHM::fInterrupted(false);
 FairMQ::Transport FairMQMessageSHM::fTransportType = FairMQ::Transport::SHM;
 
@@ -29,7 +27,6 @@ FairMQMessageSHM::FairMQMessageSHM()
     , fHandle()
     , fSize(0)
     , fLocalPtr(nullptr)
-    , fRemoteRegion(nullptr)
 {
     if (zmq_msg_init(&fMessage) != 0)
     {
@@ -46,7 +43,6 @@ FairMQMessageSHM::FairMQMessageSHM(const size_t size)
     , fHandle()
     , fSize(0)
     , fLocalPtr(nullptr)
-    , fRemoteRegion(nullptr)
 {
     InitializeChunk(size);
 }
@@ -59,7 +55,6 @@ FairMQMessageSHM::FairMQMessageSHM(void* data, const size_t size, fairmq_free_fn
     , fHandle()
     , fSize(0)
     , fLocalPtr(nullptr)
-    , fRemoteRegion(nullptr)
 {
     if (InitializeChunk(size))
     {
@@ -83,7 +78,6 @@ FairMQMessageSHM::FairMQMessageSHM(FairMQUnmanagedRegionPtr& region, void* data,
     , fHandle()
     , fSize(size)
     , fLocalPtr(data)
-    , fRemoteRegion(nullptr)
 {
     fHandle = (bipc::managed_shared_memory::handle_t)(reinterpret_cast<const char*>(data) - reinterpret_cast<const char*>(region->GetData()));
 
@@ -206,11 +200,8 @@ void* FairMQMessageSHM::GetData()
         }
         else
         {
-            if (!fRemoteRegion)
-            {
-                fRemoteRegion = FairMQUnmanagedRegionSHM::GetRemoteRegion(fRegionId);
-            }
-            fLocalPtr = reinterpret_cast<char*>(fRemoteRegion->get_address()) + fHandle;
+            boost::interprocess::mapped_region* region = Manager::Instance().GetRemoteRegion(fRegionId);
+            fLocalPtr = reinterpret_cast<char*>(region->get_address()) + fHandle;
             return fLocalPtr;
         }
     }
@@ -261,10 +252,13 @@ void FairMQMessageSHM::Copy(const unique_ptr<FairMQMessage>& msg)
 
 void FairMQMessageSHM::CloseMessage()
 {
-    if (fHandle && !fQueued && fRegionId == 0)
+    if (fHandle && !fQueued)
     {
-        Manager::Instance().Segment()->deallocate(Manager::Instance().Segment()->get_address_from_handle(fHandle));
-        fHandle = 0;
+        if (fRegionId == 0)
+        {
+            Manager::Instance().Segment()->deallocate(Manager::Instance().Segment()->get_address_from_handle(fHandle));
+            fHandle = 0;
+        }
     }
 
     if (fMetaCreated)
