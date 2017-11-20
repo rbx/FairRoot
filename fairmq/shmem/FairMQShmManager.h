@@ -171,7 +171,7 @@ class Manager
         }
         else
         {
-            std::string regionIdStr = "fairmq_shmem_region_" + std::to_string(regionId);
+            std::string regionIdStr = "fmq_shm_region_" + std::to_string(regionId);
             auto r = fRegions.emplace(regionId, Region{regionIdStr, size, false});
 
             LOG(DEBUG) << "shmem: created region: " << regionIdStr;
@@ -190,7 +190,7 @@ class Manager
         }
         else
         {
-            std::string regionIdStr = "fairmq_shmem_region_" + std::to_string(regionId);
+            std::string regionIdStr = "fmq_shm_region_" + std::to_string(regionId);
 
             auto r = fRegions.emplace(regionId, Region{regionIdStr, 0, true});
 
@@ -207,22 +207,22 @@ class Manager
 
     void Remove()
     {
-        if (bipc::shared_memory_object::remove("fairmq_shmem_main"))
+        if (bipc::shared_memory_object::remove("fmq_shm_main"))
         {
-            LOG(DEBUG) << "shmem: successfully removed \"fairmq_shmem_main\" segment after the device has stopped.";
+            LOG(DEBUG) << "shmem: successfully removed \"fmq_shm_main\" segment after the device has stopped.";
         }
         else
         {
-            LOG(DEBUG) << "shmem: did not remove \"fairmq_shmem_main\" segment after the device stopped. Already removed?";
+            LOG(DEBUG) << "shmem: did not remove \"fmq_shm_main\" segment after the device stopped. Already removed?";
         }
 
-        if (bipc::shared_memory_object::remove("fairmq_shmem_management"))
+        if (bipc::shared_memory_object::remove("fmq_shm_management"))
         {
-            LOG(DEBUG) << "shmem: successfully removed \"fairmq_shmem_management\" segment after the device has stopped.";
+            LOG(DEBUG) << "shmem: successfully removed \"fmq_shm_management\" segment after the device has stopped.";
         }
         else
         {
-            LOG(DEBUG) << "shmem: did not remove \"fairmq_shmem_management\" segment after the device stopped. Already removed?";
+            LOG(DEBUG) << "shmem: did not remove \"fmq_shm_management\" segment after the device stopped. Already removed?";
         }
     }
 
@@ -234,7 +234,7 @@ class Manager
   private:
     Manager()
         : fSegment(nullptr)
-        , fManagementSegment(bipc::open_or_create, "fairmq_shmem_management", 65536)
+        , fManagementSegment(bipc::open_or_create, "fmq_shm_management", 65536)
     {}
     Manager(const Manager&) = delete;
     Manager operator=(const Manager&) = delete;

@@ -61,7 +61,7 @@ Monitor::Monitor(const string& segmentName, bool selfDestruct, bool interactive,
     , fHeartbeatTriggered(false)
     , fLastHeartbeat()
     , fSignalThread()
-    , fManagementSegment(bipc::open_or_create, "fairmq_shmem_management", 65536)
+    , fManagementSegment(bipc::open_or_create, "fmq_shm_management", 65536)
 {
     MonitorStatus* monitorStatus = fManagementSegment.find<MonitorStatus>(bipc::unique_instance).first;
     if (monitorStatus != nullptr)
@@ -124,7 +124,7 @@ void Monitor::MonitorHeartbeats()
 {
     try
     {
-        bipc::message_queue mq(bipc::open_or_create, "fairmq_shmem_control_queue", 1000, sizeof(bool));
+        bipc::message_queue mq(bipc::open_or_create, "fmq_shm_control_queue", 1000, sizeof(bool));
 
         unsigned int priority;
         bipc::message_queue::size_type recvdSize;
@@ -339,7 +339,7 @@ void Monitor::Cleanup(const string& segmentName)
 {
     try
     {
-        bipc::managed_shared_memory managementSegment(bipc::open_only, "fairmq_shmem_management");
+        bipc::managed_shared_memory managementSegment(bipc::open_only, "fmq_shm_management");
         RegionCounter* rc = managementSegment.find<RegionCounter>(bipc::unique_instance).first;
         if (rc)
         {
@@ -347,7 +347,7 @@ void Monitor::Cleanup(const string& segmentName)
             unsigned int regionCount = rc->fCount;
             for (unsigned int i = 1; i <= regionCount; ++i)
             {
-                RemoveObject("fairmq_shmem_region_" + to_string(i));
+                RemoveObject("fmq_shm_region_" + to_string(i));
             }
         }
         else
@@ -355,16 +355,16 @@ void Monitor::Cleanup(const string& segmentName)
             cout << "shmem: no region counter found. no regions to cleanup." << endl;
         }
 
-        RemoveObject("fairmq_shmem_management");
+        RemoveObject("fmq_shm_management");
     }
     catch (bipc::interprocess_exception& ie)
     {
-        cout << "Did not find \"fairmq_shmem_management\" shared memory segment. No regions to cleanup." << endl;
+        cout << "Did not find \"fmq_shm_management\" shared memory segment. No regions to cleanup." << endl;
     }
 
     RemoveObject(segmentName);
 
-    boost::interprocess::named_mutex::remove("fairmq_shmem_mutex");
+    boost::interprocess::named_mutex::remove("fmq_shm_mutex");
 }
 
 void Monitor::RemoveObject(const std::string& name)
@@ -381,7 +381,7 @@ void Monitor::RemoveObject(const std::string& name)
 
 void Monitor::CleanupControlQueues()
 {
-    if (bipc::message_queue::remove("fairmq_shmem_control_queue"))
+    if (bipc::message_queue::remove("fmq_shm_control_queue"))
     {
         // cout << "successfully removed control queue" << endl;
     }
@@ -398,7 +398,7 @@ void Monitor::PrintQueues()
     try
     {
         bipc::managed_shared_memory segment(bipc::open_only, fSegmentName.c_str());
-        StringVector* queues = segment.find<StringVector>("fairmq_shmem_queues").first;
+        StringVector* queues = segment.find<StringVector>("fmq_shm_queues").first;
         if (queues)
         {
             cout << "found " << queues->size() << " queue(s):" << endl;

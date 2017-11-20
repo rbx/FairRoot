@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 
         options_description desc("Options");
         desc.add_options()
-            ("segment-name", value<string>(&segmentName)->default_value("fairmq_shmem_main"), "Name of the shared memory segment")
+            ("segment-name", value<string>(&segmentName)->default_value("fmq_shm_main"), "Name of the shared memory segment")
             ("cleanup", value<bool>(&cleanup)->implicit_value(true), "Perform cleanup and quit")
             ("self-destruct", value<bool>(&selfDestruct)->implicit_value(true), "Quit after first closing of the memory")
             ("interactive", value<bool>(&interactive)->implicit_value(true), "Interactive run")

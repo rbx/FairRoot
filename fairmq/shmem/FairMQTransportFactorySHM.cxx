@@ -38,7 +38,7 @@ FairMQTransportFactorySHM::FairMQTransportFactorySHM(const string& id, const Fai
     , fHeartbeatSocket(nullptr)
     , fHeartbeatThread()
     , fSendHeartbeats(true)
-    , fShMutex(bipc::open_or_create, "fairmq_shmem_mutex")
+    , fShMutex(bipc::open_or_create, "fmq_shm_mutex")
     , fDeviceCounter(nullptr)
 {
     int major, minor, patch;
@@ -55,7 +55,7 @@ FairMQTransportFactorySHM::FairMQTransportFactorySHM(const string& id, const Fai
 
     int numIoThreads = 1;
     size_t segmentSize = 2000000000;
-    string segmentName = "fairmq_shmem_main";
+    string segmentName = "fmq_shm_main";
     if (config)
     {
         numIoThreads = config->GetValue<int>("io-threads");
@@ -109,7 +109,7 @@ FairMQTransportFactorySHM::FairMQTransportFactorySHM(const string& id, const Fai
         //     }
         //     else
         //     {
-        //         LOG(DEBUG) << "shmem: found shmmonitor in fairmq_shmem_management.";
+        //         LOG(DEBUG) << "shmem: found shmmonitor in fmq_shm_management.";
         //     }
         // }
         // catch (std::exception& e)
@@ -164,7 +164,7 @@ void FairMQTransportFactorySHM::SendHeartbeats()
     {
         try
         {
-            bipc::message_queue mq(bipc::open_only, "fairmq_shmem_control_queue");
+            bipc::message_queue mq(bipc::open_only, "fmq_shm_control_queue");
             bool heartbeat = true;
             bpt::ptime sndTill = bpt::microsec_clock::universal_time() + bpt::milliseconds(100);
             if (mq.timed_send(&heartbeat, sizeof(heartbeat), 0, sndTill))
@@ -179,7 +179,7 @@ void FairMQTransportFactorySHM::SendHeartbeats()
         catch (bipc::interprocess_exception& ie)
         {
             this_thread::sleep_for(chrono::milliseconds(500));
-            // LOG(WARN) << "no fairmq_shmem_control_queue found";
+            // LOG(WARN) << "no fmq_shm_control_queue found";
         }
     }
 }
@@ -267,13 +267,13 @@ FairMQTransportFactorySHM::~FairMQTransportFactorySHM()
 
         if (fDeviceCounter->fCount == 0)
         {
-            LOG(DEBUG) << "shmem: last 'fairmq_shmem_main' user, removing segment.";
+            LOG(DEBUG) << "shmem: last 'fmq_shm_main' user, removing segment.";
 
             Manager::Instance().Remove();
         }
         else
         {
-            LOG(DEBUG) << "shmem: other 'fairmq_shmem_main' users present (" << fDeviceCounter->fCount << "), not removing it.";
+            LOG(DEBUG) << "shmem: other 'fmq_shm_main' users present (" << fDeviceCounter->fCount << "), not removing it.";
         }
     }
 }
