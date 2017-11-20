@@ -20,31 +20,29 @@ using namespace std;
 
 FairMQExampleRegionSampler::FairMQExampleRegionSampler()
     : fMsgSize(10000)
+    , fRegion(nullptr)
 {
 }
 
 void FairMQExampleRegionSampler::InitTask()
 {
     fMsgSize = fConfig->GetValue<int>("msg-size");
+
+    fRegion = FairMQUnmanagedRegionPtr(NewUnmanagedRegionFor("data", 0, 10000000));
 }
 
-void FairMQExampleRegionSampler::Run()
+bool FairMQExampleRegionSampler::ConditionalRun()
 {
-    FairMQChannel& dataOutChannel = fChannels.at("data").at(0);
+    FairMQMessagePtr msg(NewMessageFor("data", // channel
+                                        0, // sub-channel
+                                        fRegion, // region
+                                        fRegion->GetData(), // ptr within region
+                                        fMsgSize // offset from ptr
+                                        // [](void* data){  } // callback to be called when buffer no longer needed by transport
+                                        ));
+    Send(msg, "data", 0);
 
-    FairMQUnmanagedRegionPtr region(NewUnmanagedRegionFor("data", 0, 10000000));
-
-    while (CheckCurrentState(RUNNING))
-    {
-        FairMQMessagePtr msg(NewMessageFor("data", // channel
-                                           0, // sub-channel
-                                           region, // region
-                                           region->GetData(), // ptr within region
-                                           fMsgSize // offset from ptr
-                                           // [](void* data){  } // callback to be called when buffer no longer needed by transport
-                                           ));
-        dataOutChannel.Send(msg);
-    }
+    return true;
 }
 
 FairMQExampleRegionSampler::~FairMQExampleRegionSampler()
