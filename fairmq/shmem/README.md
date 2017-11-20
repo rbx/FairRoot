@@ -19,7 +19,7 @@ With default arguments the monitor will run indefinitely with no output, and cle
   `--timeout <arg>`: specifiy the timeout for the heartbeats from shmem transports in milliseconds (default 5000).
 
 The options can be combined, with the exception of `--cleanup` option, which will invoke the described behaviour independent of other options.
-Without the `--self-destruct` option, the monitor will run continously, moitoring (and cleaning up if needed) consecutive topologies.
+Without the `--self-destruct` option, the monitor will run continuously, moitoring (and cleaning up if needed) consecutive topologies.
 
 Possible further implementation would be to run the monitor with `--self-destruct` with each topology.
 

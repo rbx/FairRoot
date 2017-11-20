@@ -348,6 +348,7 @@ void Monitor::Cleanup(const string& segmentName)
             for (unsigned int i = 1; i <= regionCount; ++i)
             {
                 RemoveObject("fmq_shm_region_" + to_string(i));
+                bipc::message_queue::remove(std::string("fmq_shm_region_queue_" + std::to_string(i)).c_str());
             }
         }
         else

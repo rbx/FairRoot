@@ -76,7 +76,7 @@ struct Region
         }
         else
         {
-            // LOG(DEBUG) << "shmem: region '" << fName << "' is remote, no cleanup necessary.";
+            LOG(DEBUG) << "shmem: region '" << fName << "' is remote, no cleanup necessary.";
         }
     }
 
@@ -96,10 +96,12 @@ struct RegionQueue
         if (fRemote)
         {
             fQueue = fair::mq::tools::make_unique<boost::interprocess::message_queue>(boost::interprocess::open_only, fName.c_str());
+            LOG(DEBUG) << "shmem: located remote region queue: " << fName;
         }
         else
         {
             fQueue = fair::mq::tools::make_unique<boost::interprocess::message_queue>(boost::interprocess::create_only, fName.c_str(), 10000, sizeof(RegionBlock));
+            LOG(DEBUG) << "shmem: created region queue: " << fName;
         }
     }
 
@@ -112,11 +114,14 @@ struct RegionQueue
     {
         if (!fRemote)
         {
-            boost::interprocess::message_queue::remove(fName.c_str());
+            if (boost::interprocess::message_queue::remove(fName.c_str()))
+            {
+                LOG(DEBUG) << "shmem: removed region queue " << fName;
+            }
         }
         else
         {
-            // queue is remote, no cleanup necessary
+            LOG(DEBUG) << "shmem: region queue '" << fName << "' is remote, no cleanup necessary";
         }
     }
 
