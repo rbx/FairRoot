@@ -21,8 +21,10 @@
 
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/smart_ptr/shared_ptr.hpp>
+#include <boost/interprocess/ipc/message_queue.hpp>
 
 #include "FairMQLogger.h"
+#include "fairmq/Tools.h"
 
 namespace fair
 {
@@ -31,25 +33,31 @@ namespace mq
 namespace shmem
 {
 
-namespace bipc = boost::interprocess;
+struct RegionBlock
+{
+    boost::interprocess::managed_shared_memory::handle_t fHandle;
+    size_t fSize;
+};
 
 struct Region
 {
-    Region(std::string regionIdStr, uint64_t size, bool remote)
+    Region(uint64_t regionId, uint64_t size, bool remote)
         : fRemote(remote)
-        , fRegionIdStr(regionIdStr)
+        , fName("fmq_shm_region_" + std::to_string(regionId))
         , fShmemObject()
     {
         if (fRemote)
         {
-            fShmemObject = bipc::shared_memory_object(bipc::open_only, regionIdStr.c_str(), bipc::read_write);
+            fShmemObject = boost::interprocess::shared_memory_object(boost::interprocess::open_only, fName.c_str(), boost::interprocess::read_write);
+            LOG(DEBUG) << "shmem: located remote region: " << fName;
         }
         else
         {
-            fShmemObject = bipc::shared_memory_object(bipc::create_only, regionIdStr.c_str(), bipc::read_write);
+            fShmemObject = boost::interprocess::shared_memory_object(boost::interprocess::create_only, fName.c_str(), boost::interprocess::read_write);
+            LOG(DEBUG) << "shmem: created region: " << fName;
             fShmemObject.truncate(size);
         }
-        fRegion = bipc::mapped_region(fShmemObject, bipc::read_write); // TODO: add HUGEPAGES flag here
+        fRegion = boost::interprocess::mapped_region(fShmemObject, boost::interprocess::read_write); // TODO: add HUGEPAGES flag here
     }
 
     Region() = delete;
@@ -61,21 +69,60 @@ struct Region
     {
         if (!fRemote)
         {
-            if (bipc::shared_memory_object::remove(fRegionIdStr.c_str()))
+            if (boost::interprocess::shared_memory_object::remove(fName.c_str()))
             {
-                LOG(DEBUG) << "shmem: destroyed region " << fRegionIdStr;
+                LOG(DEBUG) << "shmem: destroyed region " << fName;
             }
         }
         else
         {
-            // LOG(DEBUG) << "shmem: region '" << fRegionIdStr << "' is remote, no cleanup necessary.";
+            // LOG(DEBUG) << "shmem: region '" << fName << "' is remote, no cleanup necessary.";
         }
     }
 
     bool fRemote;
-    std::string fRegionIdStr;
-    bipc::shared_memory_object fShmemObject;
-    bipc::mapped_region fRegion;
+    std::string fName;
+    boost::interprocess::shared_memory_object fShmemObject;
+    boost::interprocess::mapped_region fRegion;
+};
+
+struct RegionQueue
+{
+    RegionQueue(uint64_t regionId, bool remote)
+        : fRemote(remote)
+        , fName("fmq_shm_region_queue_" + std::to_string(regionId))
+        , fQueue(nullptr)
+    {
+        if (fRemote)
+        {
+            fQueue = fair::mq::tools::make_unique<boost::interprocess::message_queue>(boost::interprocess::open_only, fName.c_str());
+        }
+        else
+        {
+            fQueue = fair::mq::tools::make_unique<boost::interprocess::message_queue>(boost::interprocess::create_only, fName.c_str(), 10000, sizeof(RegionBlock));
+        }
+    }
+
+    RegionQueue() = delete;
+
+    RegionQueue(const RegionQueue&) = default;
+    RegionQueue(RegionQueue&&) = default;
+
+    ~RegionQueue()
+    {
+        if (!fRemote)
+        {
+            boost::interprocess::message_queue::remove(fName.c_str());
+        }
+        else
+        {
+            // queue is remote, no cleanup necessary
+        }
+    }
+
+    bool fRemote;
+    std::string fName;
+    std::unique_ptr<boost::interprocess::message_queue> fQueue;
 };
 
 class Manager
@@ -95,11 +142,11 @@ class Manager
             {
                 if (op == "open_or_create")
                 {
-                    fSegment = new bipc::managed_shared_memory(bipc::open_or_create, name.c_str(), size);
+                    fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::open_or_create, name.c_str(), size);
                 }
                 else if (op == "create_only")
                 {
-                    fSegment = new bipc::managed_shared_memory(bipc::create_only, name.c_str(), size);
+                    fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::create_only, name.c_str(), size);
                 }
                 else if (op == "open_only")
                 {
@@ -110,10 +157,10 @@ class Manager
                     {
                         try
                         {
-                            fSegment = new bipc::managed_shared_memory(bipc::open_only, name.c_str());
+                            fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::open_only, name.c_str());
                             success = true;
                         }
-                        catch (bipc::interprocess_exception& ie)
+                        catch (boost::interprocess::interprocess_exception& ie)
                         {
                             if (++numTries == 5)
                             {
@@ -148,7 +195,7 @@ class Manager
         }
     }
 
-    bipc::managed_shared_memory* Segment() const
+    boost::interprocess::managed_shared_memory* Segment() const
     {
         if (fSegment)
         {
@@ -161,7 +208,7 @@ class Manager
         }
     }
 
-    bipc::mapped_region* CreateRegion(const size_t size, const uint64_t regionId)
+    boost::interprocess::mapped_region* CreateRegion(const size_t size, const uint64_t regionId)
     {
         auto it = fRegions.find(regionId);
         if (it != fRegions.end())
@@ -171,16 +218,14 @@ class Manager
         }
         else
         {
-            std::string regionIdStr = "fmq_shm_region_" + std::to_string(regionId);
-            auto r = fRegions.emplace(regionId, Region{regionIdStr, size, false});
-
-            LOG(DEBUG) << "shmem: created region: " << regionIdStr;
+            auto r = fRegions.emplace(regionId, Region{regionId, size, false});
+            fRegionQueues.emplace(regionId, RegionQueue{regionId, false});
 
             return &(r.first->second.fRegion);
         }
     }
 
-    bipc::mapped_region* GetRemoteRegion(const uint64_t regionId)
+    boost::interprocess::mapped_region* GetRemoteRegion(const uint64_t regionId)
     {
         // remote region could actually be a local one if a message originates from this device (has been sent out and returned)
         auto it = fRegions.find(regionId);
@@ -190,11 +235,8 @@ class Manager
         }
         else
         {
-            std::string regionIdStr = "fmq_shm_region_" + std::to_string(regionId);
-
-            auto r = fRegions.emplace(regionId, Region{regionIdStr, 0, true});
-
-            LOG(DEBUG) << "shmem: located remote region: " << regionIdStr;
+            auto r = fRegions.emplace(regionId, Region{regionId, 0, true});
+            fRegionQueues.emplace(regionId, RegionQueue{regionId, true});
 
             return &(r.first->second.fRegion);
         }
@@ -203,11 +245,12 @@ class Manager
     void RemoveRegion(const uint64_t regionId)
     {
         fRegions.erase(regionId);
+        fRegionQueues.erase(regionId);
     }
 
     void Remove()
     {
-        if (bipc::shared_memory_object::remove("fmq_shm_main"))
+        if (boost::interprocess::shared_memory_object::remove("fmq_shm_main"))
         {
             LOG(DEBUG) << "shmem: successfully removed \"fmq_shm_main\" segment after the device has stopped.";
         }
@@ -216,7 +259,7 @@ class Manager
             LOG(DEBUG) << "shmem: did not remove \"fmq_shm_main\" segment after the device stopped. Already removed?";
         }
 
-        if (bipc::shared_memory_object::remove("fmq_shm_management"))
+        if (boost::interprocess::shared_memory_object::remove("fmq_shm_management"))
         {
             LOG(DEBUG) << "shmem: successfully removed \"fmq_shm_management\" segment after the device has stopped.";
         }
@@ -226,7 +269,7 @@ class Manager
         }
     }
 
-    bipc::managed_shared_memory& ManagementSegment()
+    boost::interprocess::managed_shared_memory& ManagementSegment()
     {
         return fManagementSegment;
     }
@@ -234,14 +277,15 @@ class Manager
   private:
     Manager()
         : fSegment(nullptr)
-        , fManagementSegment(bipc::open_or_create, "fmq_shm_management", 65536)
+        , fManagementSegment(boost::interprocess::open_or_create, "fmq_shm_management", 65536)
     {}
     Manager(const Manager&) = delete;
     Manager operator=(const Manager&) = delete;
 
-    bipc::managed_shared_memory* fSegment;
-    bipc::managed_shared_memory fManagementSegment;
+    boost::interprocess::managed_shared_memory* fSegment;
+    boost::interprocess::managed_shared_memory fManagementSegment;
     std::unordered_map<uint64_t, Region> fRegions;
+    std::unordered_map<uint64_t, RegionQueue> fRegionQueues;
 };
 
 } // namespace shmem

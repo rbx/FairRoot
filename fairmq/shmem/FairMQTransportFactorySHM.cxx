@@ -27,8 +27,10 @@
 
 using namespace std;
 using namespace fair::mq::shmem;
+
 namespace bfs = boost::filesystem;
 namespace bpt = boost::posix_time;
+namespace bipc = boost::interprocess;
 
 FairMQ::Transport FairMQTransportFactorySHM::fTransportType = FairMQ::Transport::SHM;
 

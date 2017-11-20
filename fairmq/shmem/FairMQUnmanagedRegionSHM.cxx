@@ -13,6 +13,8 @@
 using namespace std;
 using namespace fair::mq::shmem;
 
+namespace bipc = boost::interprocess;
+
 atomic<bool> FairMQUnmanagedRegionSHM::fInterrupted(false);
 
 FairMQUnmanagedRegionSHM::FairMQUnmanagedRegionSHM(const size_t size)
