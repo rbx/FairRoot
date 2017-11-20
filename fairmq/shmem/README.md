@@ -31,3 +31,5 @@ FairMQ Shared Memory currently uses following names to register shared memory on
 `fmq_shm_management` - management segment name, used for storing management data.
 `fmq_shm_control_queue` - message queue for communicating between shm transport and shm monitor (exists independent of above segments).
 `fmq_shm_mutex` - boost::interprocess::named_mutex for management purposes (exists independent of above segments).
+`fmq_shm_region_<index>` - names of unmanaged regions.
+`fmq_shm_region_queue_<index>` - names of queues for the unmanaged regions.

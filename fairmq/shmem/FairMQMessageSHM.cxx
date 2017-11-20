@@ -219,11 +219,6 @@ void FairMQMessageSHM::SetMessage(void*, const size_t)
     // dummy method to comply with the interface. functionality not allowed in zeromq.
 }
 
-void FairMQMessageSHM::SetDeviceId(const string& /*deviceId*/)
-{
-    // fDeviceID = deviceId;
-}
-
 FairMQ::Transport FairMQMessageSHM::GetType() const
 {
     return fTransportType;

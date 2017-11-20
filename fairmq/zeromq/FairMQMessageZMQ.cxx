@@ -20,7 +20,6 @@
 
 using namespace std;
 
-string FairMQMessageZMQ::fDeviceID = string();
 FairMQ::Transport FairMQMessageZMQ::fTransportType = FairMQ::Transport::ZMQ;
 
 FairMQMessageZMQ::FairMQMessageZMQ()
@@ -114,11 +113,6 @@ size_t FairMQMessageZMQ::GetSize()
 void FairMQMessageZMQ::SetMessage(void*, const size_t)
 {
     // dummy method to comply with the interface. functionality not allowed in zeromq.
-}
-
-void FairMQMessageZMQ::SetDeviceId(const string& deviceId)
-{
-    fDeviceID = deviceId;
 }
 
 FairMQ::Transport FairMQMessageZMQ::GetType() const

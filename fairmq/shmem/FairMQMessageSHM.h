@@ -45,8 +45,6 @@ class FairMQMessageSHM : public FairMQMessage
 
     virtual void SetMessage(void* data, const size_t size);
 
-    virtual void SetDeviceId(const std::string& deviceId);
-
     virtual FairMQ::Transport GetType() const;
 
     virtual void Copy(const std::unique_ptr<FairMQMessage>& msg);

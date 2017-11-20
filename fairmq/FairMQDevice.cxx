@@ -119,7 +119,6 @@ void FairMQDevice::InitWrapper()
         }
 
         FairMQMessagePtr msg(fTransportFactory->CreateMessage());
-        msg->SetDeviceId(fId);
     }
 
     // Containers to store the uninitialized channels.
@@ -805,7 +804,6 @@ shared_ptr<FairMQTransportFactory> FairMQDevice::AddTransport(const string& tran
         }
 
         FairMQMessagePtr msg(tr->CreateMessage());
-        msg->SetDeviceId(fId);
 
         return move(tr);
     }

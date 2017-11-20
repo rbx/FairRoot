@@ -34,8 +34,6 @@ class FairMQMessage
     virtual size_t GetSize() = 0;
     virtual void SetMessage(void* data, size_t size) = 0;
 
-    virtual void SetDeviceId(const std::string& deviceId) = 0;
-
     virtual FairMQ::Transport GetType() const = 0;
 
     virtual void Copy(const std::unique_ptr<FairMQMessage>& msg) = 0;

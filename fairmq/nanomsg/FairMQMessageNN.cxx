@@ -22,7 +22,6 @@
 
 using namespace std;
 
-string FairMQMessageNN::fDeviceID = string();
 FairMQ::Transport FairMQMessageNN::fTransportType = FairMQ::Transport::NN;
 
 FairMQMessageNN::FairMQMessageNN()
@@ -151,11 +150,6 @@ void FairMQMessageNN::SetMessage(void* data, const size_t size)
 {
     fMessage = data;
     fSize = size;
-}
-
-void FairMQMessageNN::SetDeviceId(const string& deviceId)
-{
-    fDeviceID = deviceId;
 }
 
 FairMQ::Transport FairMQMessageNN::GetType() const
