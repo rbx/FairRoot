@@ -36,7 +36,13 @@ void FairMQExampleRegionSampler::Run()
 
     while (CheckCurrentState(RUNNING))
     {
-        FairMQMessagePtr msg(NewMessageFor("data", 0, region, region->GetData(), fMsgSize));
+        FairMQMessagePtr msg(NewMessageFor("data", // channel
+                                           0, // sub-channel
+                                           region, // region
+                                           region->GetData(), // ptr within region
+                                           fMsgSize // offset from ptr
+                                           // [](void* data){  } // callback to be called when buffer no longer needed by transport
+                                           ));
         dataOutChannel.Send(msg);
     }
 }

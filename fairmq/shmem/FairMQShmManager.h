@@ -68,7 +68,7 @@ struct Region
         }
         else
         {
-            LOG(DEBUG) << "shmem: region '" << fRegionIdStr << "' is remote, no cleanup necessary.";
+            // LOG(DEBUG) << "shmem: region '" << fRegionIdStr << "' is remote, no cleanup necessary.";
         }
     }
 

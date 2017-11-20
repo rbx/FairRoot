@@ -260,6 +260,8 @@ FairMQTransportFactorySHM::~FairMQTransportFactorySHM()
         LOG(ERROR) << "shmem: Terminate(): context not available for shutdown";
     }
 
+    bool lastRemoved = false;
+
     { // mutex scope
         bipc::scoped_lock<bipc::named_mutex> lock(fShMutex);
 
@@ -270,11 +272,17 @@ FairMQTransportFactorySHM::~FairMQTransportFactorySHM()
             LOG(DEBUG) << "shmem: last 'fmq_shm_main' user, removing segment.";
 
             Manager::Instance().Remove();
+            lastRemoved = true;
         }
         else
         {
             LOG(DEBUG) << "shmem: other 'fmq_shm_main' users present (" << fDeviceCounter->fCount << "), not removing it.";
         }
+    }
+
+    if (lastRemoved)
+    {
+        boost::interprocess::named_mutex::remove("fmq_shm_mutex");
     }
 }
 
