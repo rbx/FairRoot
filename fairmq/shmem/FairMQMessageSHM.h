@@ -35,23 +35,23 @@ class FairMQMessageSHM : public FairMQMessage
 
     bool InitializeChunk(const size_t size);
 
-    virtual void Rebuild();
-    virtual void Rebuild(const size_t size);
-    virtual void Rebuild(void* data, const size_t size, fairmq_free_fn* ffn, void* hint = nullptr);
+    void Rebuild() override;
+    void Rebuild(const size_t size) override;
+    void Rebuild(void* data, const size_t size, fairmq_free_fn* ffn, void* hint = nullptr) override;
 
-    virtual void* GetMessage();
-    virtual void* GetData();
-    virtual size_t GetSize();
+    void* GetMessage() override;
+    void* GetData() override;
+    size_t GetSize() override;
 
-    virtual void SetMessage(void* data, const size_t size);
+    void SetMessage(void* data, const size_t size) override;
 
-    virtual FairMQ::Transport GetType() const;
+    FairMQ::Transport GetType() const override;
 
-    virtual void Copy(const std::unique_ptr<FairMQMessage>& msg);
+    void Copy(const std::unique_ptr<FairMQMessage>& msg) override;
 
     void CloseMessage();
 
-    virtual ~FairMQMessageSHM();
+    ~FairMQMessageSHM() override;
 
   private:
     zmq_msg_t fMessage;

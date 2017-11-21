@@ -29,10 +29,10 @@ class FairMQUnmanagedRegionSHM : public FairMQUnmanagedRegion
   public:
     FairMQUnmanagedRegionSHM(const size_t size);
 
-    virtual void* GetData() const override;
-    virtual size_t GetSize() const override;
+    void* GetData() const override;
+    size_t GetSize() const override;
 
-    virtual ~FairMQUnmanagedRegionSHM();
+    ~FairMQUnmanagedRegionSHM() override;
 
   private:
     static std::atomic<bool> fInterrupted;
