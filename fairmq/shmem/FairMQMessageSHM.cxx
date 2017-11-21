@@ -256,6 +256,10 @@ void FairMQMessageSHM::CloseMessage()
             Manager::Instance().Segment()->deallocate(Manager::Instance().Segment()->get_address_from_handle(fHandle));
             fHandle = 0;
         }
+        else
+        {
+            // send notification back to the receiver
+        }
     }
 
     if (fMetaCreated)
