@@ -36,7 +36,7 @@ using StringVector    = bipc::vector<String, StringAllocator>;
 
 namespace
 {
-    volatile std::sig_atomic_t gSignalStatus;
+    volatile std::sig_atomic_t gSignalStatus = 0;
 }
 
 namespace fair

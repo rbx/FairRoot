@@ -15,16 +15,18 @@
 #ifndef FAIRMQSHMMANAGER_H_
 #define FAIRMQSHMMANAGER_H_
 
-#include <thread>
-#include <chrono>
-#include <unordered_map>
+#include "FairMQLogger.h"
+#include "fairmq/Tools.h"
+
+#include <boost/asio.hpp>
 
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/smart_ptr/shared_ptr.hpp>
 #include <boost/interprocess/ipc/message_queue.hpp>
 
-#include "FairMQLogger.h"
-#include "fairmq/Tools.h"
+#include <thread>
+#include <chrono>
+#include <unordered_map>
 
 namespace fair
 {
@@ -35,6 +37,13 @@ namespace shmem
 
 struct RegionBlock
 {
+    RegionBlock(boost::interprocess::managed_shared_memory::handle_t handle, size_t size)
+        : fHandle(handle)
+        , fSize(size)
+    {}
+
+    RegionBlock() = delete;
+
     boost::interprocess::managed_shared_memory::handle_t fHandle;
     size_t fSize;
 };
@@ -44,18 +53,26 @@ struct Region
     Region(uint64_t regionId, uint64_t size, bool remote)
         : fRemote(remote)
         , fName("fmq_shm_region_" + std::to_string(regionId))
+        , fQueueName("fmq_shm_region_queue_" + std::to_string(regionId))
         , fShmemObject()
+        , fQueue(nullptr)
     {
         if (fRemote)
         {
             fShmemObject = boost::interprocess::shared_memory_object(boost::interprocess::open_only, fName.c_str(), boost::interprocess::read_write);
             LOG(DEBUG) << "shmem: located remote region: " << fName;
+
+            fQueue = fair::mq::tools::make_unique<boost::interprocess::message_queue>(boost::interprocess::open_only, fQueueName.c_str());
+            LOG(DEBUG) << "shmem: located remote region queue: " << fQueueName;
         }
         else
         {
             fShmemObject = boost::interprocess::shared_memory_object(boost::interprocess::create_only, fName.c_str(), boost::interprocess::read_write);
             LOG(DEBUG) << "shmem: created region: " << fName;
             fShmemObject.truncate(size);
+
+            fQueue = fair::mq::tools::make_unique<boost::interprocess::message_queue>(boost::interprocess::create_only, fQueueName.c_str(), 10000, sizeof(RegionBlock));
+            LOG(DEBUG) << "shmem: created region queue: " << fQueueName;
         }
         fRegion = boost::interprocess::mapped_region(fShmemObject, boost::interprocess::read_write); // TODO: add HUGEPAGES flag here
     }
@@ -73,60 +90,24 @@ struct Region
             {
                 LOG(DEBUG) << "shmem: destroyed region " << fName;
             }
-        }
-        else
-        {
-            LOG(DEBUG) << "shmem: region '" << fName << "' is remote, no cleanup necessary.";
-        }
-    }
 
-    bool fRemote;
-    std::string fName;
-    boost::interprocess::shared_memory_object fShmemObject;
-    boost::interprocess::mapped_region fRegion;
-};
-
-struct RegionQueue
-{
-    RegionQueue(uint64_t regionId, bool remote)
-        : fRemote(remote)
-        , fName("fmq_shm_region_queue_" + std::to_string(regionId))
-        , fQueue(nullptr)
-    {
-        if (fRemote)
-        {
-            fQueue = fair::mq::tools::make_unique<boost::interprocess::message_queue>(boost::interprocess::open_only, fName.c_str());
-            LOG(DEBUG) << "shmem: located remote region queue: " << fName;
-        }
-        else
-        {
-            fQueue = fair::mq::tools::make_unique<boost::interprocess::message_queue>(boost::interprocess::create_only, fName.c_str(), 10000, sizeof(RegionBlock));
-            LOG(DEBUG) << "shmem: created region queue: " << fName;
-        }
-    }
-
-    RegionQueue() = delete;
-
-    RegionQueue(const RegionQueue&) = default;
-    RegionQueue(RegionQueue&&) = default;
-
-    ~RegionQueue()
-    {
-        if (!fRemote)
-        {
-            if (boost::interprocess::message_queue::remove(fName.c_str()))
+            if (boost::interprocess::message_queue::remove(fQueueName.c_str()))
             {
                 LOG(DEBUG) << "shmem: removed region queue " << fName;
             }
         }
         else
         {
-            LOG(DEBUG) << "shmem: region queue '" << fName << "' is remote, no cleanup necessary";
+            LOG(DEBUG) << "shmem: region '" << fName << "' is remote, no cleanup necessary.";
+            LOG(DEBUG) << "shmem: region queue '" << fQueueName << "' is remote, no cleanup necessary";
         }
     }
 
     bool fRemote;
     std::string fName;
+    std::string fQueueName;
+    boost::interprocess::shared_memory_object fShmemObject;
+    boost::interprocess::mapped_region fRegion;
     std::unique_ptr<boost::interprocess::message_queue> fQueue;
 };
 
@@ -224,7 +205,9 @@ class Manager
         else
         {
             auto r = fRegions.emplace(regionId, Region{regionId, size, false});
-            fRegionQueues.emplace(regionId, RegionQueue{regionId, false});
+
+            // create handler feedback
+
 
             return &(r.first->second.fRegion);
         }
@@ -241,7 +224,6 @@ class Manager
         else
         {
             auto r = fRegions.emplace(regionId, Region{regionId, 0, true});
-            fRegionQueues.emplace(regionId, RegionQueue{regionId, true});
 
             return &(r.first->second.fRegion);
         }
@@ -250,7 +232,11 @@ class Manager
     void RemoveRegion(const uint64_t regionId)
     {
         fRegions.erase(regionId);
-        fRegionQueues.erase(regionId);
+    }
+
+    boost::interprocess::message_queue& GetRegionQueue(const uint64_t regionId)
+    {
+        return *(fRegions.at(regionId).fQueue);
     }
 
     void Remove()
@@ -283,6 +269,10 @@ class Manager
     Manager()
         : fSegment(nullptr)
         , fManagementSegment(boost::interprocess::open_or_create, "fmq_shm_management", 65536)
+        , fRegions()
+        // , fIos()
+        // , fWork(fair::mq::tools::make_unique<boost::asio::io_service::work>(fIos))
+        // , fWorkers()
     {}
     Manager(const Manager&) = delete;
     Manager operator=(const Manager&) = delete;
@@ -290,7 +280,9 @@ class Manager
     boost::interprocess::managed_shared_memory* fSegment;
     boost::interprocess::managed_shared_memory fManagementSegment;
     std::unordered_map<uint64_t, Region> fRegions;
-    std::unordered_map<uint64_t, RegionQueue> fRegionQueues;
+    // boost::asio::io_service fIos;
+    // std::unique_ptr<boost::asio::io_service::work> fWork;
+    // std::vector<std::thread> fWorkers;
 };
 
 } // namespace shmem

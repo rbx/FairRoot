@@ -26,7 +26,7 @@ FairMQMessageSHM::FairMQMessageSHM()
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
-    , fHandle()
+    , fHandle(-1)
     , fSize(0)
     , fLocalPtr(nullptr)
 {
@@ -42,7 +42,7 @@ FairMQMessageSHM::FairMQMessageSHM(const size_t size)
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
-    , fHandle()
+    , fHandle(-1)
     , fSize(0)
     , fLocalPtr(nullptr)
 {
@@ -54,7 +54,7 @@ FairMQMessageSHM::FairMQMessageSHM(void* data, const size_t size, fairmq_free_fn
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
-    , fHandle()
+    , fHandle(-1)
     , fSize(0)
     , fLocalPtr(nullptr)
 {
@@ -77,7 +77,7 @@ FairMQMessageSHM::FairMQMessageSHM(FairMQUnmanagedRegionPtr& region, void* data,
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(static_cast<FairMQUnmanagedRegionSHM*>(region.get())->fRegionId)
-    , fHandle()
+    , fHandle(-1)
     , fSize(size)
     , fLocalPtr(data)
 {
@@ -101,7 +101,7 @@ FairMQMessageSHM::FairMQMessageSHM(FairMQUnmanagedRegionPtr& region, void* data,
 
 bool FairMQMessageSHM::InitializeChunk(const size_t size)
 {
-    while (!fHandle)
+    while (fHandle < 0)
     {
         try
         {
@@ -249,7 +249,7 @@ void FairMQMessageSHM::Copy(const unique_ptr<FairMQMessage>& msg)
 
 void FairMQMessageSHM::CloseMessage()
 {
-    if (fHandle && !fQueued)
+    if (fHandle >= 0 && !fQueued)
     {
         if (fRegionId == 0)
         {
@@ -259,6 +259,11 @@ void FairMQMessageSHM::CloseMessage()
         else
         {
             // send notification back to the receiver
+            RegionBlock block(fHandle, fSize);
+            if (Manager::Instance().GetRegionQueue(fRegionId).try_send(static_cast<void*>(&block), sizeof(RegionBlock), 0))
+            {
+                // LOG(INFO) << "true";
+            }
         }
     }
 
