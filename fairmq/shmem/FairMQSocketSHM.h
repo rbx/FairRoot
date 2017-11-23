@@ -19,7 +19,7 @@
 class FairMQSocketSHM : public FairMQSocket
 {
   public:
-    FairMQSocketSHM(const std::string& type, const std::string& name, const std::string& id = "", void* context = nullptr);
+    FairMQSocketSHM(fair::mq::shmem::Manager& manager, const std::string& type, const std::string& name, const std::string& id = "", void* context = nullptr);
     FairMQSocketSHM(const FairMQSocketSHM&) = delete;
     FairMQSocketSHM operator=(const FairMQSocketSHM&) = delete;
 
@@ -60,6 +60,7 @@ class FairMQSocketSHM : public FairMQSocket
 
   private:
     void* fSocket;
+    fair::mq::shmem::Manager& fManager;
     std::string fId;
     std::atomic<unsigned long> fBytesTx;
     std::atomic<unsigned long> fBytesRx;

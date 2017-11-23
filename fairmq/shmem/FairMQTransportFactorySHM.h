@@ -10,19 +10,20 @@
 #define FAIRMQTRANSPORTFACTORYSHM_H_
 
 #include "FairMQTransportFactory.h"
+#include "FairMQShmManager.h"
 #include "FairMQMessageSHM.h"
 #include "FairMQSocketSHM.h"
 #include "FairMQPollerSHM.h"
 #include "FairMQShmCommon.h"
-#include <options/FairMQProgOptions.h>
 #include "FairMQUnmanagedRegionSHM.h"
+#include <options/FairMQProgOptions.h>
+
+#include <boost/interprocess/sync/named_mutex.hpp>
 
 #include <vector>
 #include <string>
 #include <thread>
 #include <atomic>
-
-#include <boost/interprocess/sync/named_mutex.hpp>
 
 class FairMQTransportFactorySHM : public FairMQTransportFactory
 {
@@ -60,6 +61,8 @@ class FairMQTransportFactorySHM : public FairMQTransportFactory
     std::atomic<bool> fSendHeartbeats;
     boost::interprocess::named_mutex fShMutex;
     fair::mq::shmem::DeviceCounter* fDeviceCounter;
+    std::string fSegmentName;
+    std::unique_ptr<fair::mq::shmem::Manager> fManager;
 };
 
 #endif /* FAIRMQTRANSPORTFACTORYSHM_H_ */

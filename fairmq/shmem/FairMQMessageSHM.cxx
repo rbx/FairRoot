@@ -21,8 +21,9 @@ namespace bipc = boost::interprocess;
 atomic<bool> FairMQMessageSHM::fInterrupted(false);
 FairMQ::Transport FairMQMessageSHM::fTransportType = FairMQ::Transport::SHM;
 
-FairMQMessageSHM::FairMQMessageSHM()
-    : fMessage()
+FairMQMessageSHM::FairMQMessageSHM(Manager& manager)
+    : fManager(manager)
+    , fMessage()
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
@@ -37,8 +38,9 @@ FairMQMessageSHM::FairMQMessageSHM()
     fMetaCreated = true;
 }
 
-FairMQMessageSHM::FairMQMessageSHM(const size_t size)
-    : fMessage()
+FairMQMessageSHM::FairMQMessageSHM(Manager& manager, const size_t size)
+    : fManager(manager)
+    , fMessage()
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
@@ -49,8 +51,9 @@ FairMQMessageSHM::FairMQMessageSHM(const size_t size)
     InitializeChunk(size);
 }
 
-FairMQMessageSHM::FairMQMessageSHM(void* data, const size_t size, fairmq_free_fn* ffn, void* hint)
-    : fMessage()
+FairMQMessageSHM::FairMQMessageSHM(Manager& manager, void* data, const size_t size, fairmq_free_fn* ffn, void* hint)
+    : fManager(manager)
+    , fMessage()
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
@@ -72,8 +75,9 @@ FairMQMessageSHM::FairMQMessageSHM(void* data, const size_t size, fairmq_free_fn
     }
 }
 
-FairMQMessageSHM::FairMQMessageSHM(FairMQUnmanagedRegionPtr& region, void* data, const size_t size)
-    : fMessage()
+FairMQMessageSHM::FairMQMessageSHM(Manager& manager, FairMQUnmanagedRegionPtr& region, void* data, const size_t size)
+    : fManager(manager)
+    , fMessage()
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(static_cast<FairMQUnmanagedRegionSHM*>(region.get())->fRegionId)
@@ -105,7 +109,7 @@ bool FairMQMessageSHM::InitializeChunk(const size_t size)
     {
         try
         {
-            fLocalPtr = Manager::Instance().Segment()->allocate(size);
+            fLocalPtr = fManager.Segment().allocate(size);
         }
         catch (bipc::bad_alloc& ba)
         {
@@ -120,7 +124,7 @@ bool FairMQMessageSHM::InitializeChunk(const size_t size)
                 continue;
             }
         }
-        fHandle = Manager::Instance().Segment()->get_handle_from_address(fLocalPtr);
+        fHandle = fManager.Segment().get_handle_from_address(fLocalPtr);
     }
 
     fSize = size;
@@ -198,11 +202,11 @@ void* FairMQMessageSHM::GetData()
     {
         if (fRegionId == 0)
         {
-            return Manager::Instance().Segment()->get_address_from_handle(fHandle);
+            return fManager.Segment().get_address_from_handle(fHandle);
         }
         else
         {
-            boost::interprocess::mapped_region* region = Manager::Instance().GetRemoteRegion(fRegionId);
+            boost::interprocess::mapped_region* region = fManager.GetRemoteRegion(fRegionId);
             fLocalPtr = reinterpret_cast<char*>(region->get_address()) + fHandle;
             return fLocalPtr;
         }
@@ -253,14 +257,14 @@ void FairMQMessageSHM::CloseMessage()
     {
         if (fRegionId == 0)
         {
-            Manager::Instance().Segment()->deallocate(Manager::Instance().Segment()->get_address_from_handle(fHandle));
+            fManager.Segment().deallocate(fManager.Segment().get_address_from_handle(fHandle));
             fHandle = 0;
         }
         else
         {
             // send notification back to the receiver
             RegionBlock block(fHandle, fSize);
-            if (Manager::Instance().GetRegionQueue(fRegionId).try_send(static_cast<void*>(&block), sizeof(RegionBlock), 0))
+            if (fManager.GetRegionQueue(fRegionId).try_send(static_cast<void*>(&block), sizeof(RegionBlock), 0))
             {
                 // LOG(INFO) << "true";
             }

@@ -7,7 +7,6 @@
  ********************************************************************************/
 
 #include "FairMQLogger.h"
-#include "FairMQShmManager.h"
 #include "FairMQTransportFactorySHM.h"
 
 #include <zmq.h>
@@ -42,6 +41,8 @@ FairMQTransportFactorySHM::FairMQTransportFactorySHM(const string& id, const Fai
     , fSendHeartbeats(true)
     , fShMutex(bipc::open_or_create, "fmq_shm_mutex")
     , fDeviceCounter(nullptr)
+    , fSegmentName()
+    , fManager(nullptr)
 {
     int major, minor, patch;
     zmq_version(&major, &minor, &patch);
@@ -56,13 +57,13 @@ FairMQTransportFactorySHM::FairMQTransportFactorySHM(const string& id, const Fai
     }
 
     int numIoThreads = 1;
+    fSegmentName = "fmq_shm_main";
     size_t segmentSize = 2000000000;
-    string segmentName = "fmq_shm_main";
     if (config)
     {
         numIoThreads = config->GetValue<int>("io-threads");
+        fSegmentName = config->GetValue<string>("shm-segment-name");
         segmentSize = config->GetValue<size_t>("shm-segment-size");
-        segmentName = config->GetValue<string>("shm-segment-name");
     }
     else
     {
@@ -80,13 +81,13 @@ FairMQTransportFactorySHM::FairMQTransportFactorySHM(const string& id, const Fai
         LOG(ERROR) << "shmem: failed configuring context, reason: " << zmq_strerror(errno);
     }
 
-    Manager::Instance().InitializeSegment("open_or_create", segmentName, segmentSize);
-    LOG(DEBUG) << "shmem: created/opened shared memory segment of " << segmentSize << " bytes. Available are " << Manager::Instance().Segment()->get_free_memory() << " bytes.";
+    fManager = fair::mq::tools::make_unique<Manager>(fSegmentName, segmentSize);
+    LOG(DEBUG) << "shmem: created/opened shared memory segment of " << segmentSize << " bytes. Available are " << fManager->Segment().get_free_memory() << " bytes.";
 
     {
         bipc::scoped_lock<bipc::named_mutex> lock(fShMutex);
 
-        fDeviceCounter = Manager::Instance().Segment()->find<DeviceCounter>(bipc::unique_instance).first;
+        fDeviceCounter = fManager->Segment().find<DeviceCounter>(bipc::unique_instance).first;
         if (fDeviceCounter)
         {
             LOG(DEBUG) << "shmem: device counter found, with value of " << fDeviceCounter->fCount << ". incrementing.";
@@ -96,7 +97,7 @@ FairMQTransportFactorySHM::FairMQTransportFactorySHM(const string& id, const Fai
         else
         {
             LOG(DEBUG) << "shmem: no device counter found, creating one and initializing with 1";
-            fDeviceCounter = Manager::Instance().Segment()->construct<DeviceCounter>(bipc::unique_instance)(1);
+            fDeviceCounter = fManager->Segment().construct<DeviceCounter>(bipc::unique_instance)(1);
             LOG(DEBUG) << "shmem: initialized device counter with: " << fDeviceCounter->fCount;
         }
 
@@ -141,7 +142,7 @@ void FairMQTransportFactorySHM::StartMonitor()
 
     do
     {
-        MonitorStatus* monitorStatus = Manager::Instance().ManagementSegment().find<MonitorStatus>(bipc::unique_instance).first;
+        MonitorStatus* monitorStatus = fManager->ManagementSegment().find<MonitorStatus>(bipc::unique_instance).first;
         if (monitorStatus)
         {
             LOG(DEBUG) << "shmem: shmmonitor started";
@@ -188,28 +189,28 @@ void FairMQTransportFactorySHM::SendHeartbeats()
 
 FairMQMessagePtr FairMQTransportFactorySHM::CreateMessage() const
 {
-    return unique_ptr<FairMQMessage>(new FairMQMessageSHM());
+    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(*fManager));
 }
 
 FairMQMessagePtr FairMQTransportFactorySHM::CreateMessage(const size_t size) const
 {
-    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(size));
+    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(*fManager, size));
 }
 
 FairMQMessagePtr FairMQTransportFactorySHM::CreateMessage(void* data, const size_t size, fairmq_free_fn* ffn, void* hint) const
 {
-    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(data, size, ffn, hint));
+    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(*fManager, data, size, ffn, hint));
 }
 
 FairMQMessagePtr FairMQTransportFactorySHM::CreateMessage(FairMQUnmanagedRegionPtr& region, void* data, const size_t size) const
 {
-    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(region, data, size));
+    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(*fManager, region, data, size));
 }
 
 FairMQSocketPtr FairMQTransportFactorySHM::CreateSocket(const string& type, const string& name) const
 {
     assert(fContext);
-    return unique_ptr<FairMQSocket>(new FairMQSocketSHM(type, name, GetId(), fContext));
+    return unique_ptr<FairMQSocket>(new FairMQSocketSHM(*fManager, type, name, GetId(), fContext));
 }
 
 FairMQPollerPtr FairMQTransportFactorySHM::CreatePoller(const vector<FairMQChannel>& channels) const
@@ -234,7 +235,7 @@ FairMQPollerPtr FairMQTransportFactorySHM::CreatePoller(const FairMQSocket& cmdS
 
 FairMQUnmanagedRegionPtr FairMQTransportFactorySHM::CreateUnmanagedRegion(const size_t size) const
 {
-    return unique_ptr<FairMQUnmanagedRegion>(new FairMQUnmanagedRegionSHM(size));
+    return unique_ptr<FairMQUnmanagedRegion>(new FairMQUnmanagedRegionSHM(*fManager, size));
 }
 
 FairMQTransportFactorySHM::~FairMQTransportFactorySHM()
@@ -271,14 +272,14 @@ FairMQTransportFactorySHM::~FairMQTransportFactorySHM()
 
         if (fDeviceCounter->fCount == 0)
         {
-            LOG(DEBUG) << "shmem: last 'fmq_shm_main' user, removing segment.";
+            LOG(DEBUG) << "shmem: last " << fSegmentName << " user, removing segment.";
 
-            Manager::Instance().Remove();
+            fManager->Remove();
             lastRemoved = true;
         }
         else
         {
-            LOG(DEBUG) << "shmem: other 'fmq_shm_main' users present (" << fDeviceCounter->fCount << "), not removing it.";
+            LOG(DEBUG) << "shmem: other " << fSegmentName << " users present (" << fDeviceCounter->fCount << "), not removing it.";
         }
     }
 

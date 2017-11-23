@@ -114,84 +114,24 @@ struct Region
 class Manager
 {
   public:
-    static Manager& Instance()
+    Manager(const std::string& name, size_t size)
+        : fName(name)
+        , fSegment(boost::interprocess::open_or_create, fName.c_str(), size)
+        , fManagementSegment(boost::interprocess::open_or_create, "fmq_shm_management", 65536)
+        , fRegions()
+        // , fIos()
+        // , fWork(fair::mq::tools::make_unique<boost::asio::io_service::work>(fIos))
+        // , fWorkers()
+    {}
+
+    Manager() = delete;
+
+    Manager(const Manager&) = delete;
+    Manager operator=(const Manager&) = delete;
+
+    boost::interprocess::managed_shared_memory& Segment()
     {
-        static Manager man;
-        return man;
-    }
-
-    void InitializeSegment(const std::string& op, const std::string& name, const size_t size = 0)
-    {
-        if (!fSegment)
-        {
-            try
-            {
-                if (op == "open_or_create")
-                {
-                    fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::open_or_create, name.c_str(), size);
-                }
-                else if (op == "create_only")
-                {
-                    fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::create_only, name.c_str(), size);
-                }
-                else if (op == "open_only")
-                {
-                    int numTries = 0;
-                    bool success = false;
-
-                    do
-                    {
-                        try
-                        {
-                            fSegment = new boost::interprocess::managed_shared_memory(boost::interprocess::open_only, name.c_str());
-                            success = true;
-                        }
-                        catch (boost::interprocess::interprocess_exception& ie)
-                        {
-                            if (++numTries == 5)
-                            {
-                                LOG(ERROR) << "Could not open shared memory after " << numTries << " attempts, exiting!";
-                                exit(EXIT_FAILURE);
-                            }
-                            else
-                            {
-                                LOG(DEBUG) << "Could not open shared memory segment on try " << numTries << ". Retrying in 1 second...";
-                                LOG(DEBUG) << ie.what();
-
-                                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                            }
-                        }
-                    }
-                    while (!success);
-                }
-                else
-                {
-                    LOG(ERROR) << "Unknown operation when initializing shared memory segment: " << op;
-                }
-            }
-            catch (std::exception& e)
-            {
-                LOG(ERROR) << "Exception during shared memory segment initialization: " << e.what() << ", application will now exit";
-                exit(EXIT_FAILURE);
-            }
-        }
-        else
-        {
-            LOG(INFO) << "Segment already initialized";
-        }
-    }
-
-    boost::interprocess::managed_shared_memory* Segment() const
-    {
-        if (fSegment)
-        {
-            return fSegment;
-        }
-        else
-        {
-            LOG(ERROR) << "Segment not initialized";
-            exit(EXIT_FAILURE);
-        }
+        return fSegment;
     }
 
     boost::interprocess::mapped_region* CreateRegion(const size_t size, const uint64_t regionId)
@@ -241,13 +181,13 @@ class Manager
 
     void Remove()
     {
-        if (boost::interprocess::shared_memory_object::remove("fmq_shm_main"))
+        if (boost::interprocess::shared_memory_object::remove(fName.c_str()))
         {
-            LOG(DEBUG) << "shmem: successfully removed \"fmq_shm_main\" segment after the device has stopped.";
+            LOG(DEBUG) << "shmem: successfully removed " << fName << " segment after the device has stopped.";
         }
         else
         {
-            LOG(DEBUG) << "shmem: did not remove \"fmq_shm_main\" segment after the device stopped. Already removed?";
+            LOG(DEBUG) << "shmem: did not remove " << fName << " segment after the device stopped. Already removed?";
         }
 
         if (boost::interprocess::shared_memory_object::remove("fmq_shm_management"))
@@ -266,18 +206,8 @@ class Manager
     }
 
   private:
-    Manager()
-        : fSegment(nullptr)
-        , fManagementSegment(boost::interprocess::open_or_create, "fmq_shm_management", 65536)
-        , fRegions()
-        // , fIos()
-        // , fWork(fair::mq::tools::make_unique<boost::asio::io_service::work>(fIos))
-        // , fWorkers()
-    {}
-    Manager(const Manager&) = delete;
-    Manager operator=(const Manager&) = delete;
-
-    boost::interprocess::managed_shared_memory* fSegment;
+    std::string fName;
+    boost::interprocess::managed_shared_memory fSegment;
     boost::interprocess::managed_shared_memory fManagementSegment;
     std::unordered_map<uint64_t, Region> fRegions;
     // boost::asio::io_service fIos;

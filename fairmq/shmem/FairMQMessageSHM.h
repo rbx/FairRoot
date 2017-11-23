@@ -25,10 +25,10 @@ class FairMQMessageSHM : public FairMQMessage
     friend class FairMQSocketSHM;
 
   public:
-    FairMQMessageSHM();
-    FairMQMessageSHM(const size_t size);
-    FairMQMessageSHM(void* data, const size_t size, fairmq_free_fn* ffn, void* hint = nullptr);
-    FairMQMessageSHM(FairMQUnmanagedRegionPtr& region, void* data, const size_t size);
+    FairMQMessageSHM(fair::mq::shmem::Manager& manager);
+    FairMQMessageSHM(fair::mq::shmem::Manager& manager, const size_t size);
+    FairMQMessageSHM(fair::mq::shmem::Manager& manager, void* data, const size_t size, fairmq_free_fn* ffn, void* hint = nullptr);
+    FairMQMessageSHM(fair::mq::shmem::Manager& manager, FairMQUnmanagedRegionPtr& region, void* data, const size_t size);
 
     FairMQMessageSHM(const FairMQMessageSHM&) = delete;
     FairMQMessageSHM operator=(const FairMQMessageSHM&) = delete;
@@ -54,6 +54,7 @@ class FairMQMessageSHM : public FairMQMessage
     ~FairMQMessageSHM() override;
 
   private:
+    fair::mq::shmem::Manager& fManager;
     zmq_msg_t fMessage;
     bool fQueued;
     bool fMetaCreated;

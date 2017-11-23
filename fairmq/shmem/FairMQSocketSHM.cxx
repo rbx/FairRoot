@@ -20,8 +20,9 @@ using namespace fair::mq::shmem;
 
 atomic<bool> FairMQSocketSHM::fInterrupted(false);
 
-FairMQSocketSHM::FairMQSocketSHM(const string& type, const string& name, const string& id /*= ""*/, void* context)
+FairMQSocketSHM::FairMQSocketSHM(Manager& manager, const string& type, const string& name, const string& id /*= ""*/, void* context)
     : FairMQSocket(ZMQ_SNDMORE, ZMQ_RCVMORE, ZMQ_DONTWAIT)
+    , fManager(manager)
     , fSocket(NULL)
     , fId()
     , fBytesTx(0)
@@ -301,7 +302,7 @@ int64_t FairMQSocketSHM::Receive(vector<FairMQMessagePtr>& msgVec, const int fla
 
         do
         {
-            FairMQMessagePtr part(new FairMQMessageSHM());
+            FairMQMessagePtr part(new FairMQMessageSHM(fManager));
             zmq_msg_t* msgPtr = static_cast<zmq_msg_t*>(part->GetMessage());
 
             int nbytes = zmq_msg_recv(msgPtr, fSocket, flags);

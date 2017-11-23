@@ -11,6 +11,7 @@
 
 #include "FairMQUnmanagedRegion.h"
 #include "FairMQLogger.h"
+#include "FairMQShmManager.h"
 
 #include <boost/interprocess/shared_memory_object.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -27,7 +28,7 @@ class FairMQUnmanagedRegionSHM : public FairMQUnmanagedRegion
     friend class FairMQMessageSHM;
 
   public:
-    FairMQUnmanagedRegionSHM(const size_t size);
+    FairMQUnmanagedRegionSHM(fair::mq::shmem::Manager& manager, const size_t size);
 
     void* GetData() const override;
     size_t GetSize() const override;
@@ -38,6 +39,7 @@ class FairMQUnmanagedRegionSHM : public FairMQUnmanagedRegion
     static std::atomic<bool> fInterrupted;
     boost::interprocess::mapped_region* fRegion;
     uint64_t fRegionId;
+    fair::mq::shmem::Manager& fManager;
 };
 
 #endif /* FAIRMQUNMANAGEDREGIONSHM_H_ */
