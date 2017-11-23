@@ -18,7 +18,7 @@
 
 #include "FairMQMessage.h"
 #include "FairMQUnmanagedRegion.h"
-#include "FairMQShmManager.h"
+#include "Manager.h"
 
 class FairMQMessageSHM : public FairMQMessage
 {

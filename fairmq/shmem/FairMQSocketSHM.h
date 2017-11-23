@@ -14,7 +14,7 @@
 
 #include "FairMQSocket.h"
 #include "FairMQMessage.h"
-#include "FairMQShmManager.h"
+#include "Manager.h"
 
 class FairMQSocketSHM : public FairMQSocket
 {

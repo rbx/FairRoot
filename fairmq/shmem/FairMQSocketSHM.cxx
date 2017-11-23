@@ -13,7 +13,7 @@
 #include "FairMQMessageSHM.h"
 #include "FairMQUnmanagedRegionSHM.h"
 #include "FairMQLogger.h"
-#include "FairMQShmCommon.h"
+#include "Common.h"
 
 using namespace std;
 using namespace fair::mq::shmem;

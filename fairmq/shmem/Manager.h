@@ -12,8 +12,8 @@
  * @author A. Rybalchenko
  */
 
-#ifndef FAIRMQSHMMANAGER_H_
-#define FAIRMQSHMMANAGER_H_
+#ifndef FAIR_MQ_SHMEM_MANAGER_H_
+#define FAIR_MQ_SHMEM_MANAGER_H_
 
 #include "FairMQLogger.h"
 #include "fairmq/Tools.h"
@@ -50,10 +50,10 @@ struct RegionBlock
 
 struct Region
 {
-    Region(uint64_t regionId, uint64_t size, bool remote)
+    Region(uint64_t id, uint64_t size, bool remote)
         : fRemote(remote)
-        , fName("fmq_shm_region_" + std::to_string(regionId))
-        , fQueueName("fmq_shm_region_queue_" + std::to_string(regionId))
+        , fName("fmq_shm_region_" + std::to_string(id))
+        , fQueueName("fmq_shm_region_queue_" + std::to_string(id))
         , fShmemObject()
         , fQueue(nullptr)
     {
@@ -75,6 +75,7 @@ struct Region
             LOG(DEBUG) << "shmem: created region queue: " << fQueueName;
         }
         fRegion = boost::interprocess::mapped_region(fShmemObject, boost::interprocess::read_write); // TODO: add HUGEPAGES flag here
+        // fRegion = boost::interprocess::mapped_region(fShmemObject, boost::interprocess::read_write, 0, 0, 0, MAP_HUGETLB | MAP_HUGE_1GB);
     }
 
     Region() = delete;
@@ -219,4 +220,4 @@ class Manager
 } // namespace mq
 } // namespace fair
 
-#endif /* FAIRMQSHMMANAGER_H_ */
+#endif /* FAIR_MQ_SHMEM_MANAGER_H_ */

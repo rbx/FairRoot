@@ -7,7 +7,7 @@
  ********************************************************************************/
 
 #include "FairMQUnmanagedRegionSHM.h"
-#include "FairMQShmCommon.h"
+#include "Common.h"
 
 using namespace std;
 using namespace fair::mq::shmem;
