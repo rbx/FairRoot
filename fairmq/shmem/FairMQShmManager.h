@@ -119,9 +119,9 @@ class Manager
         , fSegment(boost::interprocess::open_or_create, fName.c_str(), size)
         , fManagementSegment(boost::interprocess::open_or_create, "fmq_shm_management", 65536)
         , fRegions()
-        // , fIos()
-        // , fWork(fair::mq::tools::make_unique<boost::asio::io_service::work>(fIos))
-        // , fWorkers()
+        , fIos()
+        , fWork(fair::mq::tools::make_unique<boost::asio::io_service::work>(fIos))
+        , fWorkers()
     {}
 
     Manager() = delete;
@@ -210,9 +210,9 @@ class Manager
     boost::interprocess::managed_shared_memory fSegment;
     boost::interprocess::managed_shared_memory fManagementSegment;
     std::unordered_map<uint64_t, Region> fRegions;
-    // boost::asio::io_service fIos;
-    // std::unique_ptr<boost::asio::io_service::work> fWork;
-    // std::vector<std::thread> fWorkers;
+    boost::asio::io_service fIos;
+    std::unique_ptr<boost::asio::io_service::work> fWork;
+    std::vector<std::thread> fWorkers;
 };
 
 } // namespace shmem

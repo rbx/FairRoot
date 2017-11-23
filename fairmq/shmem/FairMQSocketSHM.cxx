@@ -23,7 +23,7 @@ atomic<bool> FairMQSocketSHM::fInterrupted(false);
 FairMQSocketSHM::FairMQSocketSHM(Manager& manager, const string& type, const string& name, const string& id /*= ""*/, void* context)
     : FairMQSocket(ZMQ_SNDMORE, ZMQ_RCVMORE, ZMQ_DONTWAIT)
     , fManager(manager)
-    , fSocket(NULL)
+    , fSocket(nullptr)
     , fId()
     , fBytesTx(0)
     , fBytesRx(0)
@@ -35,7 +35,7 @@ FairMQSocketSHM::FairMQSocketSHM(Manager& manager, const string& type, const str
     assert(context);
     fSocket = zmq_socket(context, GetConstant(type));
 
-    if (fSocket == NULL)
+    if (fSocket == nullptr)
     {
         LOG(ERROR) << "Failed creating socket " << fId << ", reason: " << zmq_strerror(errno);
         exit(EXIT_FAILURE);
@@ -68,7 +68,7 @@ FairMQSocketSHM::FairMQSocketSHM(Manager& manager, const string& type, const str
 
     if (type == "sub")
     {
-        if (zmq_setsockopt(fSocket, ZMQ_SUBSCRIBE, NULL, 0) != 0)
+        if (zmq_setsockopt(fSocket, ZMQ_SUBSCRIBE, nullptr, 0) != 0)
         {
             LOG(ERROR) << "Failed setting ZMQ_SUBSCRIBE socket option, reason: " << zmq_strerror(errno);
         }
@@ -361,7 +361,7 @@ void FairMQSocketSHM::Close()
 {
     // LOG(DEBUG) << "Closing socket " << fId;
 
-    if (fSocket == NULL)
+    if (fSocket == nullptr)
     {
         return;
     }
@@ -371,7 +371,7 @@ void FairMQSocketSHM::Close()
         LOG(ERROR) << "Failed closing socket " << fId << ", reason: " << zmq_strerror(errno);
     }
 
-    fSocket = NULL;
+    fSocket = nullptr;
 }
 
 void FairMQSocketSHM::Interrupt()

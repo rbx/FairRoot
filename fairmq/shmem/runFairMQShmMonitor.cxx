@@ -49,7 +49,7 @@ int main(int argc, char** argv)
         {
             cout << "Cleaning up \"" << segmentName << "\"..." << endl;
             fair::mq::shmem::Monitor::Cleanup(segmentName);
-            fair::mq::shmem::Monitor::CleanupControlQueues();
+            fair::mq::shmem::Monitor::RemoveQueue("fmq_shm_control_queue");
             return 0;
         }
 

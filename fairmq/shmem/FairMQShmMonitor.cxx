@@ -71,7 +71,7 @@ Monitor::Monitor(const string& segmentName, bool selfDestruct, bool interactive,
     }
     fManagementSegment.construct<MonitorStatus>(bipc::unique_instance)();
 
-    CleanupControlQueues();
+    RemoveQueue("fmq_shm_control_queue");
 }
 
 void Monitor::CatchSignals()
@@ -149,7 +149,7 @@ void Monitor::MonitorHeartbeats()
         cout << ie.what() << endl;
     }
 
-    CleanupControlQueues();
+    RemoveQueue("fmq_shm_control_queue");
 }
 
 void Monitor::Interactive()
@@ -348,7 +348,7 @@ void Monitor::Cleanup(const string& segmentName)
             for (unsigned int i = 1; i <= regionCount; ++i)
             {
                 RemoveObject("fmq_shm_region_" + to_string(i));
-                bipc::message_queue::remove(std::string("fmq_shm_region_queue_" + std::to_string(i)).c_str());
+                RemoveQueue(std::string("fmq_shm_region_queue_" + std::to_string(i)));
             }
         }
         else
@@ -372,23 +372,23 @@ void Monitor::RemoveObject(const std::string& name)
 {
     if (bipc::shared_memory_object::remove(name.c_str()))
     {
-        cout << "Successfully removed \"" << name << "\" shared memory segment." << endl;
+        cout << "Successfully removed \"" << name << "\"." << endl;
     }
     else
     {
-        cout << "Did not remove \"" << name << "\" shared memory segment. Already removed?" << endl;
+        cout << "Did not remove \"" << name << "\". Already removed?" << endl;
     }
 }
 
-void Monitor::CleanupControlQueues()
+void Monitor::RemoveQueue(const std::string& name)
 {
-    if (bipc::message_queue::remove("fmq_shm_control_queue"))
+    if (bipc::message_queue::remove(name.c_str()))
     {
-        // cout << "successfully removed control queue" << endl;
+        cout << "Successfully removed \"" << name << "\"." << endl;
     }
     else
     {
-        // cout << "could not remove control queue" << endl;
+        cout << "Did not remove \"" << name << "\". Already removed?" << endl;
     }
 }
 
