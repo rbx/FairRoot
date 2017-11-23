@@ -30,6 +30,7 @@ class FairMQExampleRegionSampler : public FairMQDevice
 
     virtual void InitTask();
     virtual bool ConditionalRun();
+    virtual void ResetTask();
 
   private:
     FairMQUnmanagedRegionPtr fRegion;

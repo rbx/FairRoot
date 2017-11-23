@@ -50,7 +50,27 @@ struct alignas(32) MetaHeader
 {
     uint64_t fSize;
     uint64_t fRegionId;
+    uint64_t fMessageId;
     boost::interprocess::managed_shared_memory::handle_t fHandle;
+};
+
+struct RegionBlock
+{
+    RegionBlock()
+        : fHandle()
+        , fSize(0)
+        , fMessageId(0)
+    {}
+
+    RegionBlock(boost::interprocess::managed_shared_memory::handle_t handle, size_t size, uint64_t id)
+        : fHandle(handle)
+        , fSize(size)
+        , fMessageId(id)
+    {}
+
+    boost::interprocess::managed_shared_memory::handle_t fHandle;
+    size_t fSize;
+    uint64_t fMessageId;
 };
 
 } // namespace shmem

@@ -37,12 +37,17 @@ bool FairMQExampleRegionSampler::ConditionalRun()
                                         0, // sub-channel
                                         fRegion, // region
                                         fRegion->GetData(), // ptr within region
-                                        fMsgSize // offset from ptr
-                                        // [](void* data){  } // callback to be called when buffer no longer needed by transport
+                                        fMsgSize, // offset from ptr
+                                        [](void* data, size_t size){  } // callback to be called when buffer no longer needed by transport
                                         ));
     Send(msg, "data", 0);
 
     return true;
+}
+
+void FairMQExampleRegionSampler::ResetTask()
+{
+    fRegion.reset();
 }
 
 FairMQExampleRegionSampler::~FairMQExampleRegionSampler()

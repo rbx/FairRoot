@@ -28,7 +28,7 @@ class FairMQMessageSHM : public FairMQMessage
     FairMQMessageSHM(fair::mq::shmem::Manager& manager);
     FairMQMessageSHM(fair::mq::shmem::Manager& manager, const size_t size);
     FairMQMessageSHM(fair::mq::shmem::Manager& manager, void* data, const size_t size, fairmq_free_fn* ffn, void* hint = nullptr);
-    FairMQMessageSHM(fair::mq::shmem::Manager& manager, FairMQUnmanagedRegionPtr& region, void* data, const size_t size);
+    FairMQMessageSHM(fair::mq::shmem::Manager& manager, FairMQUnmanagedRegionPtr& region, void* data, const size_t size, FairMQRegionCallback callback);
 
     FairMQMessageSHM(const FairMQMessageSHM&) = delete;
     FairMQMessageSHM operator=(const FairMQMessageSHM&) = delete;
@@ -61,9 +61,12 @@ class FairMQMessageSHM : public FairMQMessage
     static std::atomic<bool> fInterrupted;
     static FairMQ::Transport fTransportType;
     uint64_t fRegionId;
+    uint64_t fMessageId;
     boost::interprocess::managed_shared_memory::handle_t fHandle;
     size_t fSize;
     void* fLocalPtr;
+
+    static std::atomic<uint64_t> fMessageIds;
 };
 
 #endif /* FAIRMQMESSAGESHM_H_ */

@@ -20,6 +20,7 @@ namespace bipc = boost::interprocess;
 
 atomic<bool> FairMQMessageSHM::fInterrupted(false);
 FairMQ::Transport FairMQMessageSHM::fTransportType = FairMQ::Transport::SHM;
+atomic<uint64_t> FairMQMessageSHM::fMessageIds(0);
 
 FairMQMessageSHM::FairMQMessageSHM(Manager& manager)
     : fManager(manager)
@@ -27,6 +28,7 @@ FairMQMessageSHM::FairMQMessageSHM(Manager& manager)
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
+    , fMessageId(++fMessageIds)
     , fHandle(-1)
     , fSize(0)
     , fLocalPtr(nullptr)
@@ -44,6 +46,7 @@ FairMQMessageSHM::FairMQMessageSHM(Manager& manager, const size_t size)
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
+    , fMessageId(++fMessageIds)
     , fHandle(-1)
     , fSize(0)
     , fLocalPtr(nullptr)
@@ -57,6 +60,7 @@ FairMQMessageSHM::FairMQMessageSHM(Manager& manager, void* data, const size_t si
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(0)
+    , fMessageId(++fMessageIds)
     , fHandle(-1)
     , fSize(0)
     , fLocalPtr(nullptr)
@@ -75,12 +79,13 @@ FairMQMessageSHM::FairMQMessageSHM(Manager& manager, void* data, const size_t si
     }
 }
 
-FairMQMessageSHM::FairMQMessageSHM(Manager& manager, FairMQUnmanagedRegionPtr& region, void* data, const size_t size)
+FairMQMessageSHM::FairMQMessageSHM(Manager& manager, FairMQUnmanagedRegionPtr& region, void* data, const size_t size, FairMQRegionCallback callback)
     : fManager(manager)
     , fMessage()
     , fQueued(false)
     , fMetaCreated(false)
     , fRegionId(static_cast<FairMQUnmanagedRegionSHM*>(region.get())->fRegionId)
+    , fMessageId(++fMessageIds)
     , fHandle(-1)
     , fSize(size)
     , fLocalPtr(data)
@@ -97,7 +102,10 @@ FairMQMessageSHM::FairMQMessageSHM(Manager& manager, FairMQUnmanagedRegionPtr& r
         header.fSize = size;
         header.fHandle = fHandle;
         header.fRegionId = fRegionId;
+        header.fMessageId = fMessageId;
         memcpy(zmq_msg_data(&fMessage), &header, sizeof(MetaHeader));
+
+        fManager.SetRegionCallback(fMessageId, callback);
 
         fMetaCreated = true;
     }
@@ -138,6 +146,7 @@ bool FairMQMessageSHM::InitializeChunk(const size_t size)
     header.fSize = size;
     header.fHandle = fHandle;
     header.fRegionId = fRegionId;
+    header.fMessageId = fMessageId;
     memcpy(zmq_msg_data(&fMessage), &header, sizeof(MetaHeader));
 
     fMetaCreated = true;
@@ -263,7 +272,7 @@ void FairMQMessageSHM::CloseMessage()
         else
         {
             // send notification back to the receiver
-            RegionBlock block(fHandle, fSize);
+            RegionBlock block(fHandle, fSize, fMessageId);
             if (fManager.GetRegionQueue(fRegionId).try_send(static_cast<void*>(&block), sizeof(RegionBlock), 0))
             {
                 // LOG(INFO) << "true";

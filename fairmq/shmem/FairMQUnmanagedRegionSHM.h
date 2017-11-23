@@ -36,7 +36,6 @@ class FairMQUnmanagedRegionSHM : public FairMQUnmanagedRegion
     ~FairMQUnmanagedRegionSHM() override;
 
   private:
-    static std::atomic<bool> fInterrupted;
     boost::interprocess::mapped_region* fRegion;
     uint64_t fRegionId;
     fair::mq::shmem::Manager& fManager;

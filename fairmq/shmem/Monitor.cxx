@@ -366,6 +366,8 @@ void Monitor::Cleanup(const string& segmentName)
     RemoveObject(segmentName);
 
     boost::interprocess::named_mutex::remove("fmq_shm_mutex");
+
+    cout << endl;
 }
 
 void Monitor::RemoveObject(const std::string& name)

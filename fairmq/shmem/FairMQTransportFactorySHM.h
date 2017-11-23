@@ -35,7 +35,7 @@ class FairMQTransportFactorySHM : public FairMQTransportFactory
     FairMQMessagePtr CreateMessage() const override;
     FairMQMessagePtr CreateMessage(const size_t size) const override;
     FairMQMessagePtr CreateMessage(void* data, const size_t size, fairmq_free_fn* ffn, void* hint = nullptr) const override;
-    FairMQMessagePtr CreateMessage(FairMQUnmanagedRegionPtr& region, void* data, const size_t size) const override;
+    FairMQMessagePtr CreateMessage(FairMQUnmanagedRegionPtr& region, void* data, const size_t size, FairMQRegionCallback callback) const override;
 
     FairMQSocketPtr CreateSocket(const std::string& type, const std::string& name) const override;
 

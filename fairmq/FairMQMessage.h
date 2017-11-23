@@ -21,6 +21,7 @@
 #include "FairMQTransports.h"
 
 using fairmq_free_fn = void(void* data, void* hint);
+using FairMQRegionCallback = std::function<void(void*, size_t)>;
 
 class FairMQMessage
 {

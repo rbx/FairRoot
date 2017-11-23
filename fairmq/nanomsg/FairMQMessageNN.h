@@ -27,7 +27,7 @@ class FairMQMessageNN : public FairMQMessage
     FairMQMessageNN();
     FairMQMessageNN(const size_t size);
     FairMQMessageNN(void* data, const size_t size, fairmq_free_fn* ffn, void* hint = nullptr);
-    FairMQMessageNN(FairMQUnmanagedRegionPtr& region, void* data, const size_t size);
+    FairMQMessageNN(FairMQUnmanagedRegionPtr& region, void* data, const size_t size, FairMQRegionCallback callback);
 
     FairMQMessageNN(const FairMQMessageNN&) = delete;
     FairMQMessageNN operator=(const FairMQMessageNN&) = delete;

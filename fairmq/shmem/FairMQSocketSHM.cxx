@@ -176,6 +176,8 @@ int FairMQSocketSHM::Receive(FairMQMessagePtr& msg, const int flags)
             static_cast<FairMQMessageSHM*>(msg.get())->fHandle = hdr->fHandle;
             static_cast<FairMQMessageSHM*>(msg.get())->fSize = hdr->fSize;
             static_cast<FairMQMessageSHM*>(msg.get())->fRegionId = hdr->fRegionId;
+            static_cast<FairMQMessageSHM*>(msg.get())->fMessageId = hdr->fMessageId;
+            static_cast<FairMQMessageSHM*>(msg.get())->fMessageId = hdr->fMessageId;
             size = msg->GetSize();
 
             fBytesRx += size;
@@ -317,6 +319,7 @@ int64_t FairMQSocketSHM::Receive(vector<FairMQMessagePtr>& msgVec, const int fla
                 static_cast<FairMQMessageSHM*>(part.get())->fHandle = hdr->fHandle;
                 static_cast<FairMQMessageSHM*>(part.get())->fSize = hdr->fSize;
                 static_cast<FairMQMessageSHM*>(part.get())->fRegionId = hdr->fRegionId;
+                static_cast<FairMQMessageSHM*>(part.get())->fMessageId = hdr->fMessageId;
                 size = part->GetSize();
 
                 msgVec.push_back(move(part));
@@ -376,15 +379,15 @@ void FairMQSocketSHM::Close()
 
 void FairMQSocketSHM::Interrupt()
 {
+    fManager.Interrupt();
     FairMQMessageSHM::fInterrupted = true;
-    FairMQUnmanagedRegionSHM::fInterrupted = true;
     fInterrupted = true;
 }
 
 void FairMQSocketSHM::Resume()
 {
+    fManager.Resume();
     FairMQMessageSHM::fInterrupted = false;
-    FairMQUnmanagedRegionSHM::fInterrupted = true;
     fInterrupted = false;
 }
 

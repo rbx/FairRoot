@@ -49,7 +49,7 @@ FairMQMessageZMQ::FairMQMessageZMQ(void* data, const size_t size, fairmq_free_fn
     }
 }
 
-FairMQMessageZMQ::FairMQMessageZMQ(FairMQUnmanagedRegionPtr& /*region*/, void* data, const size_t size)
+FairMQMessageZMQ::FairMQMessageZMQ(FairMQUnmanagedRegionPtr& /*region*/, void* data, const size_t size, FairMQRegionCallback callback)
     : fMessage()
 {
     // FIXME: make this zero-copy:

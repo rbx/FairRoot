@@ -202,9 +202,9 @@ FairMQMessagePtr FairMQTransportFactorySHM::CreateMessage(void* data, const size
     return unique_ptr<FairMQMessage>(new FairMQMessageSHM(*fManager, data, size, ffn, hint));
 }
 
-FairMQMessagePtr FairMQTransportFactorySHM::CreateMessage(FairMQUnmanagedRegionPtr& region, void* data, const size_t size) const
+FairMQMessagePtr FairMQTransportFactorySHM::CreateMessage(FairMQUnmanagedRegionPtr& region, void* data, const size_t size, FairMQRegionCallback callback) const
 {
-    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(*fManager, region, data, size));
+    return unique_ptr<FairMQMessage>(new FairMQMessageSHM(*fManager, region, data, size, callback));
 }
 
 FairMQSocketPtr FairMQTransportFactorySHM::CreateSocket(const string& type, const string& name) const
@@ -274,7 +274,7 @@ FairMQTransportFactorySHM::~FairMQTransportFactorySHM()
         {
             LOG(DEBUG) << "shmem: last " << fSegmentName << " user, removing segment.";
 
-            fManager->Remove();
+            fManager->RemoveSegment();
             lastRemoved = true;
         }
         else

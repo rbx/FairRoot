@@ -14,8 +14,6 @@ using namespace fair::mq::shmem;
 
 namespace bipc = boost::interprocess;
 
-atomic<bool> FairMQUnmanagedRegionSHM::fInterrupted(false);
-
 FairMQUnmanagedRegionSHM::FairMQUnmanagedRegionSHM(Manager& manager, const size_t size)
     : fManager(manager)
     , fRegion(nullptr)
