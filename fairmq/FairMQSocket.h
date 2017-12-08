@@ -1,8 +1,8 @@
 /********************************************************************************
  *    Copyright (C) 2014 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH    *
  *                                                                              *
- *              This software is distributed under the terms of the             * 
- *              GNU Lesser General Public Licence (LGPL) version 3,             *  
+ *              This software is distributed under the terms of the             *
+ *              GNU Lesser General Public Licence (LGPL) version 3,             *
  *                  copied verbatim in the file "LICENSE"                       *
  ********************************************************************************/
 /**
@@ -32,7 +32,7 @@ class FairMQSocket
         : SNDMORE(sndMore)
         , RCVMORE(rcvMore)
         , NOBLOCK(noBlock)
-        {}
+    {}
 
     virtual std::string GetId() = 0;
 
@@ -42,6 +42,9 @@ class FairMQSocket
 
     virtual int Send(FairMQMessagePtr& msg, const int flags = 0) = 0;
     virtual int Receive(FairMQMessagePtr& msg, const int flags = 0) = 0;
+
+    virtual FairMQResult Send(FairMQMessagePtr&& msg, const int flags = 0) = 0;
+    virtual FairMQResult Receive(FairMQMessagePtr&& msg, const int flags = 0) = 0;
 
     virtual int64_t Send(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0) = 0;
     virtual int64_t Receive(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0) = 0;

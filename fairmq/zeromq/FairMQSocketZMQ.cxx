@@ -111,6 +111,83 @@ void FairMQSocketZMQ::Connect(const string& address)
     }
 }
 
+FairMQResult FairMQSocketZMQ::Send(FairMQMessagePtr&& msg, const int flags)
+{
+    int nbytes = -1;
+
+    static_cast<FairMQMessageZMQ*>(msg.get())->ApplyUsedSize();
+
+    while (true)
+    {
+        nbytes = zmq_msg_send(static_cast<FairMQMessageZMQ*>(msg.get())->GetMessage(), fSocket, flags);
+        if (nbytes >= 0)
+        {
+            fBytesTx += nbytes;
+            ++fMessagesTx;
+
+            return FairMQResult{true, nullptr};
+        }
+        else if (zmq_errno() == EAGAIN)
+        {
+            if (!fInterrupted && ((flags & ZMQ_DONTWAIT) == 0))
+            {
+                continue;
+            }
+            else
+            {
+                return FairMQResult{false, std::move(msg)};
+            }
+        }
+        else if (zmq_errno() == ETERM)
+        {
+            LOG(INFO) << "terminating socket " << fId;
+            return FairMQResult{false, std::move(msg)};
+        }
+        else
+        {
+            LOG(ERROR) << "Failed sending on socket " << fId << ", reason: " << zmq_strerror(errno);
+            return FairMQResult{false, std::move(msg)};
+        }
+    }
+}
+
+FairMQResult FairMQSocketZMQ::Receive(FairMQMessagePtr&& msg, const int flags)
+{
+    int nbytes = -1;
+
+    while (true)
+    {
+        nbytes = zmq_msg_recv(static_cast<FairMQMessageZMQ*>(msg.get())->GetMessage(), fSocket, flags);
+        if (nbytes >= 0)
+        {
+            fBytesRx += nbytes;
+            ++fMessagesRx;
+            return FairMQResult{true, nullptr};
+        }
+        else if (zmq_errno() == EAGAIN)
+        {
+            if (!fInterrupted && ((flags & ZMQ_DONTWAIT) == 0))
+            {
+                continue;
+            }
+            else
+            {
+                return FairMQResult{false, std::move(msg)};
+            }
+        }
+        else if (zmq_errno() == ETERM)
+        {
+            LOG(INFO) << "terminating socket " << fId;
+            return FairMQResult{false, std::move(msg)};
+        }
+        else
+        {
+            LOG(ERROR) << "Failed receiving on socket " << fId << ", reason: " << zmq_strerror(errno);
+            return FairMQResult{false, std::move(msg)};
+        }
+    }
+}
+
 int FairMQSocketZMQ::Send(FairMQMessagePtr& msg, const int flags)
 {
     int nbytes = -1;

@@ -37,6 +37,9 @@ class FairMQSocketZMQ : public FairMQSocket
     virtual int Send(FairMQMessagePtr& msg, const int flags = 0);
     virtual int Receive(FairMQMessagePtr& msg, const int flags = 0);
 
+    virtual FairMQResult Send(FairMQMessagePtr&& msg, const int flags = 0);
+    virtual FairMQResult Receive(FairMQMessagePtr&& msg, const int flags = 0);
+
     virtual int64_t Send(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0);
     virtual int64_t Receive(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0);
 

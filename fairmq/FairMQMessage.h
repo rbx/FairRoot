@@ -43,4 +43,16 @@ class FairMQMessage
 
 using FairMQMessagePtr = std::unique_ptr<FairMQMessage>;
 
+struct FairMQResult
+{
+    FairMQResult() = delete;
+    FairMQResult(bool success, FairMQMessagePtr msg)
+        : fSuccess(success)
+        , fMsg(std::move(msg))
+    {}
+
+    bool fSuccess;
+    FairMQMessagePtr fMsg;
+};
+
 #endif /* FAIRMQMESSAGE_H_ */
