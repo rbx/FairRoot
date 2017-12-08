@@ -51,6 +51,11 @@ struct FairMQResult
         , fMsg(std::move(msg))
     {}
 
+    operator bool() const
+    {
+        return fSuccess;
+    }
+
     bool fSuccess;
     FairMQMessagePtr fMsg;
 };

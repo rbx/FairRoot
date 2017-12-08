@@ -69,7 +69,8 @@ void FairMQBenchmarkSampler::Run()
             FairMQMessagePtr msg(dataOutChannel.Transport()->CreateMessage());
             msg->Copy(baseMsg);
 
-            if (dataOutChannel.Send(msg) >= 0)
+            FairMQResult res = dataOutChannel.Send(std::move(msg));
+            if (res)
             {
                 if (fMaxIterations > 0)
                 {
@@ -85,7 +86,8 @@ void FairMQBenchmarkSampler::Run()
         {
             FairMQMessagePtr msg(dataOutChannel.Transport()->CreateMessage(fMsgSize));
 
-            if (dataOutChannel.Send(msg) >= 0)
+            FairMQResult res = dataOutChannel.Send(std::move(msg));
+            if (res)
             {
                 if (fMaxIterations > 0)
                 {

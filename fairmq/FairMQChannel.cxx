@@ -709,6 +709,18 @@ int FairMQChannel::Receive(unique_ptr<FairMQMessage>& msg) const
     return fSocket->Receive(msg);
 }
 
+FairMQResult FairMQChannel::Send(unique_ptr<FairMQMessage>&& msg) const
+{
+    CheckCompatibility(msg);
+    return fSocket->Send(std::move(msg));
+}
+
+FairMQResult FairMQChannel::Receive(unique_ptr<FairMQMessage>&& msg) const
+{
+    CheckCompatibility(msg);
+    return fSocket->Receive(std::move(msg));
+}
+
 int FairMQChannel::Send(unique_ptr<FairMQMessage>& msg, int sndTimeoutInMs) const
 {
     fPoller->Poll(sndTimeoutInMs);

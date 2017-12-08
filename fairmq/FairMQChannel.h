@@ -175,6 +175,9 @@ class FairMQChannel
     int Send(std::unique_ptr<FairMQMessage>& msg) const;
     int Receive(std::unique_ptr<FairMQMessage>& msg) const;
 
+    FairMQResult Send(std::unique_ptr<FairMQMessage>&& msg) const;
+    FairMQResult Receive(std::unique_ptr<FairMQMessage>&& msg) const;
+
     /// Sends a message to the socket queue.
     /// @details Send method attempts to send a message by
     /// putting it in the output queue. If the queue is full or queueing is not possible
