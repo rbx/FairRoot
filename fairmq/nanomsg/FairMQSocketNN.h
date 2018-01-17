@@ -40,10 +40,13 @@ class FairMQSocketNN : public FairMQSocket
     virtual int64_t Receive(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0);
 
     int Socket() const;
+
     virtual void Close();
 
     virtual void Interrupt();
     virtual void Resume();
+
+    virtual int GetFileDescriptor() const;
 
     virtual void SetOption(const std::string& option, const void* value, size_t valueSize);
     virtual void GetOption(const std::string& option, void* value, size_t* valueSize);

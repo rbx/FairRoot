@@ -351,6 +351,15 @@ void* FairMQSocketZMQ::Socket() const
     return fSocket;
 }
 
+int FairMQSocketZMQ::GetFileDescriptor() const
+{
+    int fd = 0;
+    auto size = sizeof(int);
+    zmq_getsockopt(fSocket, ZMQ_FD, &fd, &size);
+
+    return fd;
+}
+
 void FairMQSocketZMQ::SetOption(const string& option, const void* value, size_t valueSize)
 {
     if (zmq_setsockopt(fSocket, GetConstant(option), value, valueSize) < 0)

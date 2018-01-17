@@ -405,6 +405,15 @@ int FairMQSocketNN::Socket() const
     return fSocket;
 }
 
+int FairMQSocketNN::GetFileDescriptor() const
+{
+    int fd = 0;
+    auto size = sizeof(int);
+    nn_getsockopt(fSocket, NN_SOL_SOCKET, NN_RCVFD, &fd, &size);
+
+    return fd;
+}
+
 void FairMQSocketNN::SetOption(const string& option, const void* value, size_t valueSize)
 {
     if (option == "snd-size" || option == "rcv-size")

@@ -24,6 +24,8 @@
 #include "FairMQSocket.h"
 #include "FairMQDevice.h"
 #include "FairMQLogger.h"
+#include "FairMQPollerEx.h"
+
 #include <fairmq/Tools.h>
 
 #include "options/FairMQProgOptions.h"
@@ -561,11 +563,16 @@ void FairMQDevice::HandleSingleChannelInput()
 
 void FairMQDevice::HandleMultipleChannelInput()
 {
+    FairMQPollerEx ptest;
+
     // check if more than one transport is used
     fMultitransportInputs.clear();
     for (const auto& k : fInputChannelKeys)
     {
         FairMQ::Transport t = fChannels.at(k).at(0).fTransportType;
+
+        ptest.AddChannel(fChannels.at(k).at(0));
+
         if (fMultitransportInputs.find(t) == fMultitransportInputs.end())
         {
             fMultitransportInputs.insert(pair<FairMQ::Transport, vector<string>>(t, vector<string>()));

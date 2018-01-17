@@ -40,6 +40,8 @@ class FairMQSocketSHM : public FairMQSocket
     void Interrupt() override;
     void Resume() override;
 
+    int GetFileDescriptor() const override;
+
     void SetOption(const std::string& option, const void* value, size_t valueSize) override;
     void GetOption(const std::string& option, void* value, size_t* valueSize) override;
 
