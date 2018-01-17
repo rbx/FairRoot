@@ -39,8 +39,7 @@ class FairMQSocketNN : public FairMQSocket
     virtual int64_t Send(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0);
     virtual int64_t Receive(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0);
 
-    virtual void* GetSocket() const;
-    virtual int GetSocket(int nothing) const;
+    int Socket() const;
     virtual void Close();
 
     virtual void Interrupt();

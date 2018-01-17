@@ -61,9 +61,6 @@ class FairMQDevice : public FairMQStateMachine
     /// Catches interrupt signals (SIGINT, SIGTERM)
     void CatchSignals();
 
-    /// Outputs the socket transfer rates
-    virtual void LogSocketRates();
-
     /// Sorts a channel by address, with optional reindexing of the sorted values
     /// @param name    Channel name
     /// @param reindex Should reindexing be done
@@ -465,6 +462,9 @@ class FairMQDevice : public FairMQStateMachine
     /// Resets the device (can be overloaded in child classes)
     /// Executed in a worker thread
     virtual void Reset();
+
+    /// Outputs the socket transfer rates
+    virtual void LogSocketRates();
 
   private:
     // condition variable to notify parent thread about end of initial validation.

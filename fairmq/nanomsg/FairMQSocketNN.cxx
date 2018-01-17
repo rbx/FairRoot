@@ -400,12 +400,7 @@ void FairMQSocketNN::Resume()
     fInterrupted = false;
 }
 
-void* FairMQSocketNN::GetSocket() const
-{
-    return nullptr; // dummy method to comply with the interface. functionality not possible in zeromq.
-}
-
-int FairMQSocketNN::GetSocket(int /*nothing*/) const
+int FairMQSocketNN::Socket() const
 {
     return fSocket;
 }

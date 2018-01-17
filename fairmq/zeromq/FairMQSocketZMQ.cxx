@@ -346,15 +346,9 @@ void FairMQSocketZMQ::Resume()
     fInterrupted = false;
 }
 
-void* FairMQSocketZMQ::GetSocket() const
+void* FairMQSocketZMQ::Socket() const
 {
     return fSocket;
-}
-
-int FairMQSocketZMQ::GetSocket(int) const
-{
-    // dummy method to comply with the interface. functionality not possible in zeromq.
-    return -1;
 }
 
 void FairMQSocketZMQ::SetOption(const string& option, const void* value, size_t valueSize)

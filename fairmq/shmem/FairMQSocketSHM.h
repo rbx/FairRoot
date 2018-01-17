@@ -34,8 +34,7 @@ class FairMQSocketSHM : public FairMQSocket
     int64_t Send(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0) override;
     int64_t Receive(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0) override;
 
-    void* GetSocket() const override;
-    int GetSocket(int nothing) const override;
+    void* Socket() const;
     void Close() override;
 
     void Interrupt() override;

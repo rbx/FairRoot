@@ -32,7 +32,7 @@ class FairMQSocket
         : SNDMORE(sndMore)
         , RCVMORE(rcvMore)
         , NOBLOCK(noBlock)
-        {}
+    {}
 
     virtual std::string GetId() = 0;
 
@@ -46,8 +46,6 @@ class FairMQSocket
     virtual int64_t Send(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0) = 0;
     virtual int64_t Receive(std::vector<std::unique_ptr<FairMQMessage>>& msgVec, const int flags = 0) = 0;
 
-    virtual void* GetSocket() const = 0;
-    virtual int GetSocket(int nothing) const = 0;
     virtual void Close() = 0;
 
     virtual void Interrupt() = 0;
